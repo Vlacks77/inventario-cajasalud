@@ -1,119 +1,91 @@
 <template>
-    <section>
-        <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center mb-3">
-            <div>
-                <h2 class="h4 mb-1">Kardex de inventario</h2>
-                <p class="text-secondary mb-0">Stock disponible consolidado por medicamento y lote.</p>
-            </div>
-            <button class="btn btn-outline-primary" type="button" :disabled="cargando" @click="cargarInventario">
-                {{ cargando ? 'Actualizando...' : 'Actualizar' }}
-            </button>
+    <div class="card shadow-sm border-0 rounded-3 mt-4">
+        <div class="card-header bg-success text-white py-3">
+            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i> Kardex de Inventario Actual</h5>
         </div>
-
-        <div class="card shadow-sm border-0">
-            <div class="card-body border-bottom">
-                <label class="visually-hidden" for="buscar-inventario">Buscar medicamento</label>
-                <input id="buscar-inventario" v-model.trim="busqueda" class="form-control" type="search" placeholder="Buscar por código, nombre, concentración o lote...">
-            </div>
-
-            <div v-if="cargando" class="card-body text-center py-5 text-secondary">
-                <div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>
-                Cargando inventario...
-            </div>
-            <div v-else-if="error" class="card-body">
-                <div class="alert alert-danger mb-0">{{ error }}</div>
-            </div>
-            <div v-else-if="inventarioFiltrado.length === 0" class="card-body text-center py-5 text-secondary">
-                No se encontraron medicamentos.
-            </div>
-
-            <div v-else class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th scope="col">Código</th>
-                            <th scope="col">Medicamento</th>
-                            <th scope="col" class="text-end">Stock actual</th>
-                            <th scope="col">Lotes y vencimientos</th>
+                            <th>Código</th>
+                            <th>Medicamento</th>
+                            <th>Presentación</th>
+                            <th class="text-center">Stock Total</th>
+                            <th>Próximo Vencimiento</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="medicamento in inventarioFiltrado" :key="medicamento.id">
-                            <td class="fw-semibold">{{ medicamento.codigo }}</td>
-                            <td>
-                                <div>{{ medicamento.nombre }}</div>
-                                <small class="text-secondary">{{ medicamento.concentracion }} · {{ medicamento.forma_farmaceutica }}</small>
+                        <tr v-if="cargando">
+                            <td colspan="5" class="text-center py-4 text-muted">Cargando inventario...</td>
+                        </tr>
+                        <tr v-else-if="medicamentos.length === 0">
+                            <td colspan="5" class="text-center py-4 text-muted">No hay medicamentos registrados en el sistema.</td>
+                        </tr>
+                        <tr v-else v-for="item in medicamentos" :key="item.id">
+                            <td class="fw-bold text-secondary">{{ item.codigo }}</td>
+                            <td class="fw-bold">{{ item.nombre }} <br><small class="text-muted fw-normal">{{ item.concentracion }}</small></td>
+                            <td>{{ item.forma_farmaceutica }}</td>
+                            <td class="text-center">
+                                <span class="badge" :class="item.stock_total > 10 ? 'bg-primary' : 'bg-danger'">
+                                    {{ item.stock_total }}
+                                </span>
                             </td>
-                            <td class="text-end">
-                                <span class="badge text-bg-primary fs-6">{{ stockActual(medicamento) }}</span>
-                                <small class="d-block text-secondary mt-1">Mínimo: {{ medicamento.stock_minimo }}</small>
-                            </td>
-                            <td>
-                                <ul v-if="medicamento.lotes.length" class="list-unstyled mb-0 small">
-                                    <li v-for="lote in medicamento.lotes" :key="lote.id" class="mb-1">
-                                        <span class="fw-semibold">Lote {{ lote.codigo_lote }}</span>
-                                        · vence {{ formatearFecha(lote.fecha_vencimiento) }}
-                                        · {{ lote.cantidad_actual }} disponible
-                                        <span v-if="lote.proveedor" class="text-secondary">· {{ lote.proveedor.nombre }}</span>
-                                    </li>
-                                </ul>
-                                <span v-else class="text-secondary small">Sin lotes registrados</span>
+                            <td :class="{'text-danger fw-bold': esProximoAVencer(item.proximo_vencimiento)}">
+                                {{ formatearFecha(item.proximo_vencimiento) }}
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-    </section>
+    </div>
 </template>
 
 <script setup>
-import axios from 'axios'
-import { computed, onMounted, ref } from 'vue'
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
-const medicamentos = ref([])
-const busqueda = ref('')
-const cargando = ref(true)
-const error = ref('')
-
-const inventarioFiltrado = computed(() => {
-    const termino = busqueda.value.toLocaleLowerCase()
-
-    if (!termino) return medicamentos.value
-
-    return medicamentos.value.filter((medicamento) => {
-        const datos = [
-            medicamento.codigo,
-            medicamento.nombre,
-            medicamento.concentracion,
-            medicamento.forma_farmaceutica,
-        ].join(' ').toLocaleLowerCase()
-
-        return datos.includes(termino) || medicamento.lotes.some((lote) =>
-            lote.codigo_lote.toLocaleLowerCase().includes(termino)
-        )
-    })
-})
-
-const stockActual = (medicamento) => Number(medicamento.stock_actual ?? 0)
-
-const formatearFecha = (fecha) => new Intl.DateTimeFormat('es-BO', {
-    dateStyle: 'medium',
-}).format(new Date(`${fecha}T00:00:00`))
+const medicamentos = ref([]);
+const cargando = ref(true);
 
 const cargarInventario = async () => {
-    cargando.value = true
-    error.value = ''
-
     try {
-        const { data } = await axios.get('api/inventario')
-        medicamentos.value = data.data
-    } catch (err) {
-        error.value = err.response?.data?.message || 'No fue posible cargar el inventario.'
+        const respuesta = await axios.get('/api/inventario');
+        medicamentos.value = respuesta.data;
+    } catch (error) {
+        console.error("Error cargando el inventario:", error);
     } finally {
-        cargando.value = false
+        cargando.value = false;
     }
-}
+};
 
-onMounted(cargarInventario)
+// Función para poner en rojo si vence en menos de 90 días
+const esProximoAVencer = (fecha) => {
+    if (fecha === 'Sin stock') return false;
+    const fechaVencimiento = new Date(fecha);
+    const hoy = new Date();
+    const diferenciaDias = (fechaVencimiento - hoy) / (1000 * 60 * 60 * 24);
+    return diferenciaDias <= 90;
+};
+
+// Función para limpiar la fecha (de formato máquina a formato humano)
+const formatearFecha = (fechaRaw) => {
+    if (fechaRaw === 'Sin stock' || !fechaRaw) return 'Sin stock';
+    
+    // Convertimos el texto del servidor a un objeto de fecha de Javascript
+    const fecha = new Date(fechaRaw);
+    
+    // Lo devolvemos en formato Boliviano (Día/Mes/Año)
+    return fecha.toLocaleDateString('es-BO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+};
+
+// Al cargar el componente, llamamos a la API
+onMounted(() => {
+    cargarInventario();
+});
 </script>
