@@ -7,11 +7,16 @@
         
         <!-- AQUÍ ESTÁ EL CAMBIO: Contenedor blanco con el logo -->
         <div class="bg-white rounded-3 d-inline-flex p-2 mb-3 shadow-sm">
-          <img src="/img/logo-caminos.png" alt="Logo Caja de Salud de Caminos" style="height: 200px; object-fit: contain;">
+          <img src="img/logo-caminos.png" alt="Logo Caja de Salud de Caminos" style="height: 200px; object-fit: contain;">
         </div>
 
-        <h4 class="fw-bold mb-0">Caja de Salud de Caminos</h4>
-        <p class="small text-white-50 mb-0">Sistema de Gestión de Almacén Central</p>
+        <h4 class="fw-bold mb-1 login-main-title">
+              SISTEMA DE GESTIÓN <br>      
+            ALMACÉN DE MEDICAMENTOS
+        </h4>
+        <p class="login-subtitle mb-0">
+            CAJA DE SALUD DE CAMINOS
+        </p>
       </div>
 
       <!-- Formulario de Credenciales -->
@@ -106,5 +111,18 @@ const autenticar = () => {
 }
 .border-soft-blue {
   border: 1px solid #bbdefb !important;
+}
+.login-main-title {
+    color: #123b6d;
+    font-size: 20px;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.login-subtitle {
+    color: white;
+    font-size: 15px;
+    font-weight: 400;
+    text-align: center;
 }
 </style>
