@@ -113,16 +113,18 @@ const autenticar = () => {
   border: 1px solid #bbdefb !important;
 }
 .login-main-title {
-    color: #123b6d;
+    color: #0e305a;
+    font-family: Arial, sans-serif;
     font-size: 20px;
+    font-weight: 1100;
     line-height: 1.2;
     text-align: center;
 }
 
 .login-subtitle {
     color: white;
-    font-size: 15px;
-    font-weight: 400;
+    font-size: 16px;
+    font-weight: 600;
     text-align: center;
 }
 </style>
