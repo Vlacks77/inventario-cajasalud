@@ -2,8 +2,9 @@ import axios from 'axios';
 
 window.axios = axios;
 
-window.axios.defaults.baseURL =
-    window.location.origin + '/inventario-cajasalud/public';
+// Usa automáticamente la carpeta donde está instalado el sistema
+const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
 
-window.axios.defaults.headers.common['X-Requested-With'] =
-    'XMLHttpRequest';
+window.axios.defaults.baseURL = base;
+
+window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
