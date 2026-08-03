@@ -1,0 +1,11 @@
+INVENTARIO CAJA DE SALUD - INSTALACION XAMPP
+
+1. Use XAMPP con PHP 8.2 o superior.
+2. Copie la carpeta completa en C:\xampp\htdocs\inventario
+3. Inicie Apache y MySQL.
+4. Cree/importe la base de datos inventario_cajasalud.
+5. Revise .env si usuario, clave, puerto o nombre de MySQL son distintos.
+6. Abra http://localhost/inventario/ o desde la red http://IP-DEL-SERVIDOR/inventario/
+
+No necesita php artisan serve ni npm run dev.
+Apache debe tener mod_rewrite habilitado y AllowOverride All para htdocs.

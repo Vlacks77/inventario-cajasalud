@@ -14,7 +14,7 @@
             <!-- Logo / Nombre -->
             <div class="col-md-7 d-flex align-items-center gap-3">
               <div class="bg-white rounded-3 p-1 shadow-sm d-none d-sm-block">
-                <img src="/img/logo-caminos.png" alt="Logo Caja de Salud" style="height: 45px; object-fit: contain;">
+                <img src="img/logo-caminos.png" alt="Logo Caja de Salud" style="height: 45px; object-fit: contain;">
               </div>
               <div>
                 <h3 class="fw-bold mb-0 text-white">Caja de Salud de Caminos</h3>
@@ -250,7 +250,7 @@ const registrarIngreso = async () => {
   mensajeExito.value = '';
 
   try {
-    const { data } = await axios.post('/api/ingresos', form.value);
+    const { data } = await axios.post('api/ingresos', form.value);
     mensajeExito.value = data.message;
     form.value = crearFormulario();
   } catch (error) {

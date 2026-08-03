@@ -96,7 +96,7 @@ const error = ref('')
 // Pedimos al backend la lista de inventario
 const cargarInventario = async () => {
     try {
-        const respuesta = await axios.get('/api/inventario')
+        const respuesta = await axios.get('api/inventario')
         // Solo mostramos los que tienen stock mayor a 0
         inventario.value = respuesta.data.filter(med => med.stock_total > 0)
     } catch (e) {
@@ -118,7 +118,7 @@ const procesarSalida = async () => {
     mensajeExito.value = ''
 
     try {
-        const { data } = await axios.post('/api/salidas', form.value)
+        const { data } = await axios.post('api/salidas', form.value)
         mensajeExito.value = data.message
         
         // Limpiamos el formulario para la siguiente salida

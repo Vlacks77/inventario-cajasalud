@@ -51,7 +51,7 @@ const cargando = ref(true);
 
 const cargarInventario = async () => {
     try {
-        const respuesta = await axios.get('/api/inventario');
+        const respuesta = await axios.get('api/inventario');
         medicamentos.value = respuesta.data;
     } catch (error) {
         console.error("Error cargando el inventario:", error);
