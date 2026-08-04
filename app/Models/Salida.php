@@ -4,28 +4,44 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Salida extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'medicamento_id',
-        'lote_id',
-        'cantidad',
-        'destino',
-        'entregado_a',
         'fecha_salida',
-        'observaciones'
+        'establecimiento_id',
+        'solicitado_por',
+        'entregado_a',
+        'observaciones',
+        'estado',
+        'usuario_id',
     ];
 
-    // Una salida pertenece a un medicamento
-    public function medicamento() {
-        return $this->belongsTo(Medicamento::class);
+    /**
+     * Establecimiento al que se envía la salida.
+     */
+    public function establecimiento(): BelongsTo
+    {
+        return $this->belongsTo(Establecimiento::class);
     }
 
-    // Una salida descuenta de un lote específico
-    public function lote() {
-        return $this->belongsTo(Lote::class);
+    /**
+     * Usuario que registró la salida.
+     */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    /**
+     * Detalle de medicamentos incluidos en la salida.
+     */
+    public function detalles(): HasMany
+    {
+        return $this->hasMany(DetalleSalida::class);
     }
 }

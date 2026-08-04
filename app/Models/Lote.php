@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 
 class Lote extends Model
@@ -35,5 +36,9 @@ class Lote extends Model
     public function proveedor(): BelongsTo
     {
         return $this->belongsTo(Proveedor::class);
+    }
+    public function detalleSalidas(): HasMany
+    {
+    return $this->hasMany(DetalleSalida::class);
     }
 }
