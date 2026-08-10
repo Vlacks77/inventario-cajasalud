@@ -41,6 +41,7 @@
         <!-- NAVEGACIÓN PRINCIPAL -->
         <nav class="nav nav-pills gap-2 mb-4 p-2 bg-white rounded-3 shadow-sm border border-light" aria-label="Navegación principal">
           <button 
+            v-if="puedeModificar"
             class="nav-link fw-bold px-4" 
             :class="vistaActual === 'ingreso' ? 'bg-csc-orange text-white shadow-sm' : 'bg-white text-secondary'" 
             type="button" 
@@ -50,6 +51,7 @@
           </button>
           
           <button 
+            v-if="puedeModificar"
             class="nav-link fw-bold px-4" 
             :class="vistaActual === 'salida' ? 'bg-csc-orange text-white shadow-sm' : 'bg-white text-secondary'" 
             type="button" 
@@ -79,7 +81,7 @@
         </div>
 
         <!-- FORMULARIO DE INGRESO -->
-        <form v-show="vistaActual === 'ingreso'" class="card shadow-sm border-0 mb-5" novalidate @submit.prevent="registrarIngreso">
+        <form v-if="vistaActual === 'ingreso' && puedeModificar" class="card shadow-sm border-0 mb-5" novalidate @submit.prevent="registrarIngreso">
           <!-- Cabecera de tarjeta en Azul Suave -->
           <div class="card-header bg-soft-blue text-dark fw-bold py-3 border-0">
             <h5 class="mb-0 fs-6 text-primary"><i class="bi bi-box-seam me-2"></i> Formulario de Registro de Ingreso de Medicamento</h5>
@@ -186,7 +188,7 @@
         </form>
 
         <!-- FORMULARIO DE SALIDA -->
-        <RegistrarSalida v-show="vistaActual === 'salida'" />
+        <RegistrarSalida v-if="vistaActual === 'salida' && puedeModificar" />
 
         <!-- TABLA DE INVENTARIO (KARDEX) -->
         <Inventario v-if="vistaActual === 'inventario'" />
@@ -198,23 +200,45 @@
 
 <script setup>
 import axios from 'axios';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import Login from './components/Login.vue';
 import Inventario from './components/Inventario.vue';
 import RegistrarSalida from './components/RegistrarSalida.vue';
 
+
 const sesionIniciada = ref(false);
 const usuarioActual = ref({ nombre: '', rol: '' });
+const puedeModificar = computed(() => {
+  return ['almacen', 'auxiliar', 'admin'].includes(usuarioActual.value.rol);
+});
+
+
+// Recuperar la sesión guardada al cargar la aplicación
+onMounted(() => {
+  const usuarioGuardado = localStorage.getItem('usuario_actual');
+  const tokenGuardado = localStorage.getItem('auth_token');
+
+  if (usuarioGuardado && tokenGuardado) {
+    usuarioActual.value = JSON.parse(usuarioGuardado);
+    sesionIniciada.value = true;
+  }
+});
+
 
 const iniciarSesion = (datos) => {
   usuarioActual.value = datos;
   sesionIniciada.value = true;
 };
 
+
 const cerrarSesion = () => {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('usuario_actual');
+
   sesionIniciada.value = false;
   usuarioActual.value = { nombre: '', rol: '' };
 };
+
 
 const crearFormulario = () => ({
   medicamento: {
@@ -228,6 +252,7 @@ const crearFormulario = () => ({
     codigo_lote: '', fecha_vencimiento: '', cantidad: 1,
   },
 });
+
 
 const form = ref(crearFormulario());
 const vistaActual = ref('ingreso');

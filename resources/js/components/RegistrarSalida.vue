@@ -1,144 +1,1302 @@
 <template>
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-            <div v-show="mensajeExito" class="alert alert-warning alert-dismissible fade show text-dark fw-bold" role="alert">
-                <i class="bi bi-check-circle me-2"></i> {{ mensajeExito }}
-                <button type="button" class="btn-close" @click="mensajeExito = ''"></button>
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+
+      <!-- MENSAJES -->
+      <div
+        v-if="mensajeExito"
+        class="alert alert-success alert-dismissible fade show fw-bold"
+        role="alert"
+      >
+        <i class="bi bi-check-circle me-2"></i>
+        {{ mensajeExito }}
+
+        <button
+          type="button"
+          class="btn-close"
+          @click="mensajeExito = ''"
+        ></button>
+      </div>
+
+      <div
+        v-if="error"
+        class="alert alert-danger alert-dismissible fade show"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        {{ error }}
+
+        <button
+          type="button"
+          class="btn-close"
+          @click="error = ''"
+        ></button>
+      </div>
+
+      <form @submit.prevent="procesarSalida" novalidate>
+
+        <!-- ===================================================== -->
+        <!-- CABECERA DE LA SALIDA -->
+        <!-- ===================================================== -->
+
+        <section class="mb-4">
+          <h2 class="h5 border-bottom pb-2 text-primary">
+            <i class="bi bi-file-earmark-medical me-2"></i>
+            1. Datos de la Salida
+          </h2>
+
+          <div class="row g-3">
+
+            <!-- FECHA -->
+            <div class="col-md-3">
+              <label class="form-label fw-bold">
+                Fecha de salida *
+              </label>
+
+              <input
+                v-model="form.fecha_salida"
+                type="date"
+                class="form-control"
+                required
+              >
             </div>
-            <div v-show="error" class="alert alert-danger" role="alert">
-                {{ error }}
+
+            <!-- ESTABLECIMIENTO -->
+            <div class="col-md-5">
+              <label class="form-label fw-bold">
+                Establecimiento / Destino *
+              </label>
+
+              <select
+                v-model="form.establecimiento_id"
+                class="form-select"
+                required
+                :disabled="cargandoEstablecimientos"
+              >
+                <option value="" disabled>
+                  {{
+                    cargandoEstablecimientos
+                      ? 'Cargando establecimientos...'
+                      : 'Seleccione un establecimiento...'
+                  }}
+                </option>
+
+                <option
+                  v-for="establecimiento in establecimientos"
+                  :key="establecimiento.id"
+                  :value="establecimiento.id"
+                >
+                  {{ establecimiento.nombre }}
+                  <span v-if="establecimiento.sigla">
+                    ({{ establecimiento.sigla }})
+                  </span>
+                </option>
+              </select>
+
+              <small
+                v-if="!cargandoEstablecimientos && establecimientos.length === 0"
+                class="text-danger"
+              >
+                No hay establecimientos activos registrados.
+              </small>
             </div>
 
-            <form @submit.prevent="procesarSalida" novalidate>
-                
-                <section class="mb-4">
-                    <h2 class="h5 border-bottom pb-2 text-primary">1. Selección de Insumo</h2>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Medicamento *</label>
-                            <select v-model="medicamentoSeleccionado" class="form-select bg-light" @change="cargarLotes" required>
-                                <option value="" disabled>Seleccione de la lista...</option>
-                                <option v-for="med in inventario" :key="med.id" :value="med">
-                                    {{ med.codigo }} - {{ med.nombre }} (Stock Disp: {{ med.stock_total }})
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Lote a descontar *</label>
-                            <select v-model="form.lote_id" class="form-select border-warning" required :disabled="!medicamentoSeleccionado">
-                                <option value="" disabled>Seleccione un lote...</option>
-                                <option v-for="lote in lotesDisponibles" :key="lote.id" :value="lote.id">
-                                    Lote: {{ lote.codigo_lote }} - Disp: {{ lote.cantidad_actual }} unids (Vence: {{ lote.fecha_vencimiento }})
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-                </section>
+            <!-- SOLICITADO POR -->
+            <div class="col-md-4">
+              <label class="form-label fw-bold">
+                Solicitado por *
+              </label>
 
-                <section class="mb-4">
-                    <h2 class="h5 border-bottom pb-2 text-primary">2. Datos del Traspaso / Salida</h2>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Cantidad a extraer *</label>
-                            <input v-model.number="form.cantidad" type="number" min="1" class="form-control text-danger fw-bold" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Destino / Área *</label>
-                            <input v-model.trim="form.destino" type="text" class="form-control" placeholder="Ej: Farmacia 1, Emergencias" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Fecha de salida *</label>
-                            <input v-model="form.fecha_salida" type="date" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Entregado a (Nombre del Doctor/Enfermera)</label>
-                            <input v-model.trim="form.entregado_a" type="text" class="form-control" placeholder="Ej: Dr. Pérez">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Observaciones</label>
-                            <input v-model.trim="form.observaciones" type="text" class="form-control" placeholder="Motivo o detalle adicional">
-                        </div>
-                    </div>
-                </section>
+              <input
+                v-model.trim="form.solicitado_por"
+                type="text"
+                class="form-control"
+                placeholder="Nombre del solicitante"
+                required
+              >
+            </div>
 
-                <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-warning px-5 shadow text-dark fw-bold" :disabled="procesando">
-                        <span v-if="procesando" class="spinner-border spinner-border-sm me-2"></span>
-                        {{ procesando ? 'Descontando...' : 'Registrar Salida' }}
-                    </button>
+            <!-- ENTREGADO A -->
+            <div class="col-md-6">
+              <label class="form-label">
+                Entregado a
+              </label>
+
+              <input
+                v-model.trim="form.entregado_a"
+                type="text"
+                class="form-control"
+                placeholder="Nombre del doctor, enfermera, responsable, etc."
+              >
+            </div>
+
+            <!-- OBSERVACIONES -->
+            <div class="col-md-6">
+              <label class="form-label">
+                Observaciones
+              </label>
+
+              <input
+                v-model.trim="form.observaciones"
+                type="text"
+                class="form-control"
+                placeholder="Observaciones adicionales"
+              >
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- ===================================================== -->
+        <!-- AGREGAR MEDICAMENTO -->
+        <!-- ===================================================== -->
+
+        <section class="mb-4">
+          <h2 class="h5 border-bottom pb-2 text-primary">
+            <i class="bi bi-capsule me-2"></i>
+            2. Agregar Medicamentos
+          </h2>
+
+          <div class="row g-3">
+
+            <!-- BUSCADOR -->
+            <div class="col-md-6 position-relative">
+
+              <label class="form-label fw-bold">
+                Buscar medicamento *
+              </label>
+
+              <div class="input-group">
+                <span class="input-group-text bg-light">
+                  <i class="bi bi-search"></i>
+                </span>
+
+                <input
+                  ref="buscadorMedicamento"
+                  v-model="textoBusqueda"
+                  type="text"
+                  class="form-control"
+                  placeholder="Código o nombre del medicamento..."
+                  autocomplete="off"
+                  @input="buscarMedicamentos"
+                >
+              </div>
+
+              <!-- RESULTADOS DEL BUSCADOR -->
+              <div
+                v-if="mostrarResultados"
+                class="position-absolute bg-white border rounded shadow w-100 mt-1"
+                style="z-index: 1050; max-height: 280px; overflow-y: auto;"
+              >
+
+                <button
+                  v-for="medicamento in resultadosMedicamentos"
+                  :key="medicamento.id"
+                  type="button"
+                  class="list-group-item list-group-item-action border-0 border-bottom text-start"
+                  @click="seleccionarMedicamento(medicamento)"
+                >
+                  <div class="fw-bold">
+                    {{ medicamento.nombre }}
+                  </div>
+
+                  <small class="text-muted">
+                    {{ medicamento.codigo }}
+                    <span v-if="medicamento.concentracion">
+                      · {{ medicamento.concentracion }}
+                    </span>
+                    <span v-if="medicamento.forma_farmaceutica">
+                      · {{ medicamento.forma_farmaceutica }}
+                    </span>
+                  </small>
+                </button>
+
+                <div
+                  v-if="resultadosMedicamentos.length === 0 && !buscandoMedicamentos"
+                  class="p-3 text-muted text-center"
+                >
+                  No se encontraron medicamentos.
                 </div>
-            </form>
+
+                <div
+                  v-if="buscandoMedicamentos"
+                  class="p-3 text-muted text-center"
+                >
+                  Buscando...
+                </div>
+
+              </div>
+
+              <!-- MEDICAMENTO SELECCIONADO -->
+              <div
+                v-if="medicamentoSeleccionado"
+                class="mt-2 p-2 rounded bg-light border"
+              >
+                <div class="d-flex justify-content-between align-items-start">
+
+                  <div>
+                    <div class="fw-bold text-primary">
+                      {{ medicamentoSeleccionado.nombre }}
+                    </div>
+
+                    <small class="text-muted">
+                      Código: {{ medicamentoSeleccionado.codigo }}
+                      <span v-if="medicamentoSeleccionado.concentracion">
+                        · {{ medicamentoSeleccionado.concentracion }}
+                      </span>
+                    </small>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @click="limpiarSeleccionMedicamento"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+
+                </div>
+              </div>
+
+            </div>
+
+
+            <!-- LOTE -->
+            <div class="col-md-4">
+
+              <label class="form-label fw-bold">
+                Lote *
+              </label>
+
+              <select
+                v-model="loteSeleccionadoId"
+                class="form-select border-warning"
+                :disabled="!medicamentoSeleccionado || cargandoLotes"
+              >
+                <option value="" disabled>
+                  {{
+                    !medicamentoSeleccionado
+                      ? 'Seleccione primero un medicamento'
+                      : cargandoLotes
+                        ? 'Cargando lotes...'
+                        : 'Seleccione un lote...'
+                  }}
+                </option>
+
+                <option
+                  v-for="lote in lotesDisponibles"
+                  :key="lote.id"
+                  :value="lote.id"
+                >
+                  {{ lote.codigo_lote }}
+                  — Stock: {{ lote.cantidad_actual }}
+                  — Vence: {{ formatearFecha(lote.fecha_vencimiento) }}
+                </option>
+              </select>
+
+              <!-- INFORMACIÓN DEL LOTE -->
+              <div
+                v-if="loteSeleccionado"
+                class="mt-2 small"
+              >
+                <span class="badge bg-success me-1">
+                  Stock: {{ loteSeleccionado.cantidad_actual }}
+                </span>
+
+                <span class="badge bg-secondary">
+                  Vence:
+                  {{ formatearFecha(loteSeleccionado.fecha_vencimiento) }}
+                </span>
+              </div>
+
+            </div>
+
+
+            <!-- CANTIDAD -->
+            <div class="col-md-2">
+
+              <label class="form-label fw-bold">
+                Cantidad *
+              </label>
+
+              <input
+                v-model.number="cantidadDetalle"
+                type="number"
+                min="1"
+                :max="loteSeleccionado?.cantidad_actual || undefined"
+                class="form-control text-danger fw-bold"
+                :disabled="!loteSeleccionado"
+              >
+
+            </div>
+
+          </div>
+
+
+          <!-- BOTÓN AGREGAR -->
+          <div class="mt-3 d-flex align-items-center gap-2">
+
+            <button
+              type="button"
+              class="btn btn-csc-orange px-4 fw-bold"
+              :disabled="!puedeAgregarDetalle || procesando"
+              @click="agregarDetalle"
+            >
+              <i class="bi bi-plus-circle me-2"></i>
+
+              {{
+                indiceEditando !== null
+                  ? 'Actualizar medicamento'
+                  : 'Agregar medicamento'
+              }}
+            </button>
+
+            <button
+              v-if="indiceEditando !== null"
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="cancelarEdicion"
+            >
+              Cancelar edición
+            </button>
+
+            <span
+              v-if="loteSeleccionado && cantidadDetalle > loteSeleccionado.cantidad_actual"
+              class="text-danger small fw-bold"
+            >
+              La cantidad supera el stock disponible.
+            </span>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================== -->
+        <!-- DETALLE DE LA SALIDA -->
+        <!-- ===================================================== -->
+
+        <section class="mb-4">
+
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+
+            <h2 class="h5 text-primary mb-0">
+              <i class="bi bi-list-check me-2"></i>
+              3. Detalle de la Salida
+            </h2>
+
+            <span class="badge bg-primary">
+              {{ detalles.length }}
+              {{ detalles.length === 1 ? 'medicamento' : 'medicamentos' }}
+            </span>
+
+          </div>
+
+
+          <!-- TABLA -->
+          <div
+            v-if="detalles.length > 0"
+            class="table-responsive"
+          >
+
+            <table class="table table-hover align-middle">
+
+              <thead class="table-light">
+
+                <tr>
+                  <th>#</th>
+                  <th>Medicamento</th>
+                  <th>Lote</th>
+                  <th>Vencimiento</th>
+                  <th class="text-center">Cantidad</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr
+                  v-for="(detalle, index) in detalles"
+                  :key="detalle.lote_id"
+                >
+
+                  <td>
+                    {{ index + 1 }}
+                  </td>
+
+                  <td>
+                    <div class="fw-bold">
+                      {{ detalle.nombre }}
+                    </div>
+
+                    <small class="text-muted">
+                      {{ detalle.codigo }}
+                      <span v-if="detalle.concentracion">
+                        · {{ detalle.concentracion }}
+                      </span>
+                    </small>
+                  </td>
+
+                  <td>
+                    <span class="badge bg-light text-dark border">
+                      {{ detalle.codigo_lote }}
+                    </span>
+                  </td>
+
+                  <td>
+                    {{ formatearFecha(detalle.fecha_vencimiento) }}
+                  </td>
+
+                  <td class="text-center fw-bold">
+                    {{ detalle.cantidad }}
+                  </td>
+
+                  <td class="text-center">
+
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary me-1"
+                      title="Editar"
+                      @click="editarDetalle(index)"
+                    >
+                      <i class="bi bi-pencil"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      title="Eliminar"
+                      @click="eliminarDetalle(index)"
+                    >
+                      <i class="bi bi-trash"></i>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+              <tfoot class="table-light">
+
+                <tr>
+                  <td colspan="4" class="text-end fw-bold">
+                    Total de unidades:
+                  </td>
+
+                  <td class="text-center fw-bold text-primary">
+                    {{ totalUnidades }}
+                  </td>
+
+                  <td></td>
+                </tr>
+
+              </tfoot>
+
+            </table>
+
+          </div>
+
+
+          <!-- SIN DETALLES -->
+          <div
+            v-else
+            class="border rounded p-4 text-center text-muted bg-light"
+          >
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+
+            Todavía no hay medicamentos agregados a esta salida.
+
+            <div class="small mt-1">
+              Busque un medicamento arriba y agréguelo al detalle.
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================== -->
+        <!-- GUARDAR SALIDA -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-end align-items-center gap-3">
+
+          <div
+            v-if="detalles.length === 0"
+            class="text-muted small"
+          >
+            Agregue al menos un medicamento.
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-csc-orange px-5 shadow fw-bold"
+            :disabled="procesando || !puedeGuardar"
+          >
+
+            <span
+              v-if="procesando"
+              class="spinner-border spinner-border-sm me-2"
+              aria-hidden="true"
+            ></span>
+
+            <i
+              v-else
+              class="bi bi-check-circle me-2"
+            ></i>
+
+            {{ procesando ? 'Guardando salida...' : 'Guardar Salida' }}
+
+          </button>
+
         </div>
+
+      </form>
+
     </div>
+  </div>
 </template>
 
+
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import axios from 'axios'
 
-const inventario = ref([])
-const medicamentoSeleccionado = ref('')
-const lotesDisponibles = ref([])
+
+/*
+|--------------------------------------------------------------------------
+| ESTADO DE LA CABECERA
+|--------------------------------------------------------------------------
+*/
 
 const form = ref({
-    lote_id: '',
-    cantidad: 1,
-    destino: '',
-    entregado_a: '',
-    fecha_salida: new Date().toISOString().slice(0, 10),
-    observaciones: ''
+  fecha_salida: obtenerFechaLocal(),
+  establecimiento_id: '',
+  solicitado_por: '',
+  entregado_a: '',
+  observaciones: ''
 })
+
+
+/*
+|--------------------------------------------------------------------------
+| ESTABLECIMIENTOS
+|--------------------------------------------------------------------------
+*/
+
+const establecimientos = ref([])
+const cargandoEstablecimientos = ref(false)
+
+
+/*
+|--------------------------------------------------------------------------
+| BUSCADOR DE MEDICAMENTOS
+|--------------------------------------------------------------------------
+*/
+
+const textoBusqueda = ref('')
+const resultadosMedicamentos = ref([])
+const medicamentoSeleccionado = ref(null)
+
+const buscandoMedicamentos = ref(false)
+const mostrarResultados = ref(false)
+
+const buscadorMedicamento = ref(null)
+
+let temporizadorBusqueda = null
+
+
+/*
+|--------------------------------------------------------------------------
+| LOTES
+|--------------------------------------------------------------------------
+*/
+
+const lotesDisponibles = ref([])
+const loteSeleccionadoId = ref('')
+const cargandoLotes = ref(false)
+
+
+/*
+|--------------------------------------------------------------------------
+| DETALLE
+|--------------------------------------------------------------------------
+*/
+
+const cantidadDetalle = ref(1)
+const detalles = ref([])
+
+// null = estamos agregando
+// número = estamos editando ese detalle
+const indiceEditando = ref(null)
+
+
+/*
+|--------------------------------------------------------------------------
+| ESTADO GENERAL
+|--------------------------------------------------------------------------
+*/
 
 const procesando = ref(false)
 const mensajeExito = ref('')
 const error = ref('')
 
-// Pedimos al backend la lista de inventario
-const cargarInventario = async () => {
-    try {
-        const respuesta = await axios.get('api/inventario')
-        // Solo mostramos los que tienen stock mayor a 0
-        inventario.value = respuesta.data.filter(med => med.stock_total > 0)
-    } catch (e) {
-        error.value = "Error conectando con la base de datos."
-    }
+
+/*
+|--------------------------------------------------------------------------
+| COMPUTED
+|--------------------------------------------------------------------------
+*/
+
+const loteSeleccionado = computed(() => {
+  if (!loteSeleccionadoId.value) {
+    return null
+  }
+
+  return lotesDisponibles.value.find(
+    lote => String(lote.id) === String(loteSeleccionadoId.value)
+  ) || null
+})
+
+
+const puedeAgregarDetalle = computed(() => {
+  return (
+    medicamentoSeleccionado.value &&
+    loteSeleccionado.value &&
+    Number.isInteger(Number(cantidadDetalle.value)) &&
+    Number(cantidadDetalle.value) >= 1 &&
+    Number(cantidadDetalle.value) <= Number(loteSeleccionado.value.cantidad_actual)
+  )
+})
+
+
+const puedeGuardar = computed(() => {
+  return (
+    form.value.fecha_salida &&
+    form.value.establecimiento_id &&
+    form.value.solicitado_por.trim() &&
+    detalles.value.length > 0
+  )
+})
+
+
+const totalUnidades = computed(() => {
+  return detalles.value.reduce(
+    (total, detalle) => total + Number(detalle.cantidad),
+    0
+  )
+})
+
+
+/*
+|--------------------------------------------------------------------------
+| FECHA LOCAL
+|--------------------------------------------------------------------------
+*/
+
+function obtenerFechaLocal() {
+  const fecha = new Date()
+
+  const año = fecha.getFullYear()
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+
+  return `${año}-${mes}-${dia}`
 }
 
-// Cuando la doctora elige un medicamento, esta función filtra y muestra sus lotes
-const cargarLotes = () => {
-    form.value.lote_id = '' 
-    if (medicamentoSeleccionado.value) {
-        lotesDisponibles.value = medicamentoSeleccionado.value.lotes.filter(l => l.cantidad_actual > 0)
-    }
+
+/*
+|--------------------------------------------------------------------------
+| FORMATO DE FECHA
+|--------------------------------------------------------------------------
+*/
+
+function formatearFecha(fecha) {
+  if (!fecha) {
+    return '-'
+  }
+
+  // La API devuelve normalmente YYYY-MM-DD
+  const partes = String(fecha).slice(0, 10).split('-')
+
+  if (partes.length !== 3) {
+    return fecha
+  }
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| CARGAR ESTABLECIMIENTOS
+|--------------------------------------------------------------------------
+*/
+
+const cargarEstablecimientos = async () => {
+  cargandoEstablecimientos.value = true
+
+  try {
+    const respuesta = await axios.get('api/establecimientos')
+
+    establecimientos.value = respuesta.data
+  } catch (e) {
+    console.error(e)
+
+    error.value =
+      e.response?.data?.message ||
+      'No se pudieron cargar los establecimientos.'
+  } finally {
+    cargandoEstablecimientos.value = false
+  }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| BUSCAR MEDICAMENTOS
+|--------------------------------------------------------------------------
+*/
+
+const buscarMedicamentos = () => {
+  mostrarResultados.value = true
+
+  clearTimeout(temporizadorBusqueda)
+
+  const termino = textoBusqueda.value.trim()
+
+  // No hacemos consultas para búsquedas demasiado cortas.
+  if (termino.length < 2) {
+    resultadosMedicamentos.value = []
+    return
+  }
+
+  temporizadorBusqueda = setTimeout(async () => {
+
+    buscandoMedicamentos.value = true
+    error.value = ''
+
+    try {
+      const respuesta = await axios.get('api/medicamentos', {
+        params: {
+          buscar: termino
+        }
+      })
+
+      resultadosMedicamentos.value = respuesta.data
+
+    } catch (e) {
+      console.error(e)
+
+      resultadosMedicamentos.value = []
+
+      error.value =
+        e.response?.data?.message ||
+        'No se pudieron buscar los medicamentos.'
+    } finally {
+      buscandoMedicamentos.value = false
+    }
+
+  }, 250)
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| SELECCIONAR MEDICAMENTO
+|--------------------------------------------------------------------------
+*/
+
+const seleccionarMedicamento = async (medicamento) => {
+
+  medicamentoSeleccionado.value = medicamento
+
+  textoBusqueda.value = ''
+  resultadosMedicamentos.value = []
+  mostrarResultados.value = false
+
+  loteSeleccionadoId.value = ''
+  lotesDisponibles.value = []
+
+  cantidadDetalle.value = 1
+
+  await cargarLotes(medicamento.id)
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CARGAR LOTES DEL MEDICAMENTO
+|--------------------------------------------------------------------------
+*/
+
+const cargarLotes = async (medicamentoId) => {
+
+  if (!medicamentoId) {
+    return
+  }
+
+  cargandoLotes.value = true
+  error.value = ''
+
+  try {
+
+    const respuesta = await axios.get(
+      `api/medicamentos/${medicamentoId}/lotes`
+    )
+
+    lotesDisponibles.value = respuesta.data
+
+    /*
+     * La API ya entrega los lotes ordenados por vencimiento.
+     * Por eso el primero es la sugerencia FEFO.
+     */
+    if (lotesDisponibles.value.length > 0) {
+      loteSeleccionadoId.value = lotesDisponibles.value[0].id
+    } else {
+      error.value =
+        'El medicamento seleccionado no tiene lotes con stock disponible.'
+    }
+
+  } catch (e) {
+    console.error(e)
+
+    lotesDisponibles.value = []
+    loteSeleccionadoId.value = ''
+
+    error.value =
+      e.response?.data?.message ||
+      'No se pudieron cargar los lotes del medicamento.'
+  } finally {
+    cargandoLotes.value = false
+  }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| LIMPIAR SELECCIÓN DE MEDICAMENTO
+|--------------------------------------------------------------------------
+*/
+
+const limpiarSeleccionMedicamento = () => {
+
+  medicamentoSeleccionado.value = null
+
+  textoBusqueda.value = ''
+  resultadosMedicamentos.value = []
+
+  lotesDisponibles.value = []
+  loteSeleccionadoId.value = ''
+
+  cantidadDetalle.value = 1
+
+  indiceEditando.value = null
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| AGREGAR / ACTUALIZAR DETALLE
+|--------------------------------------------------------------------------
+*/
+
+const agregarDetalle = () => {
+
+  if (!puedeAgregarDetalle.value) {
+    error.value = 'Complete correctamente medicamento, lote y cantidad.'
+    return
+  }
+
+  const medicamento = medicamentoSeleccionado.value
+  const lote = loteSeleccionado.value
+  const cantidad = Number(cantidadDetalle.value)
+
+  /*
+   * Si estamos editando un detalle existente...
+   */
+  if (indiceEditando.value !== null) {
+
+    const indiceActual = indiceEditando.value
+
+    /*
+     * Comprobamos si el lote elegido ya existe en otro detalle.
+     */
+    const indiceDuplicado = detalles.value.findIndex(
+      (detalle, index) =>
+        index !== indiceActual &&
+        String(detalle.lote_id) === String(lote.id)
+    )
+
+    if (indiceDuplicado !== -1) {
+
+      const deseaSumar = window.confirm(
+        'Este lote ya está incluido en la salida. ¿Desea sumar la cantidad al detalle existente?'
+      )
+
+      if (!deseaSumar) {
+        return
+      }
+
+      const cantidadTotal =
+        Number(detalles.value[indiceDuplicado].cantidad) + cantidad
+
+      if (cantidadTotal > Number(lote.cantidad_actual)) {
+        error.value =
+          `La cantidad total supera el stock disponible del lote. ` +
+          `Disponible: ${lote.cantidad_actual}.`
+
+        return
+      }
+
+      detalles.value[indiceDuplicado].cantidad = cantidadTotal
+
+      detalles.value.splice(indiceActual, 1)
+
+      cancelarEdicion()
+
+      return
+    }
+
+    /*
+     * No hay duplicado: actualizamos directamente.
+     */
+    detalles.value[indiceActual] = crearDetalle(
+      medicamento,
+      lote,
+      cantidad
+    )
+
+    cancelarEdicion()
+
+    return
+  }
+
+
+  /*
+   * Si estamos agregando un detalle nuevo,
+   * primero verificamos si el lote ya está incluido.
+   */
+  const indiceDuplicado = detalles.value.findIndex(
+    detalle =>
+      String(detalle.lote_id) === String(lote.id)
+  )
+
+  if (indiceDuplicado !== -1) {
+
+    const deseaSumar = window.confirm(
+      'Este lote ya está incluido en la salida. ¿Desea sumar la nueva cantidad?'
+    )
+
+    if (!deseaSumar) {
+      return
+    }
+
+    const cantidadTotal =
+      Number(detalles.value[indiceDuplicado].cantidad) + cantidad
+
+    if (cantidadTotal > Number(lote.cantidad_actual)) {
+      error.value =
+        `La cantidad total supera el stock disponible del lote. ` +
+        `Disponible: ${lote.cantidad_actual}.`
+
+      return
+    }
+
+    detalles.value[indiceDuplicado].cantidad = cantidadTotal
+
+    limpiarLineaCaptura()
+
+    return
+  }
+
+
+  /*
+   * Agregar nuevo detalle.
+   */
+  detalles.value.push(
+    crearDetalle(
+      medicamento,
+      lote,
+      cantidad
+    )
+  )
+
+  limpiarLineaCaptura()
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CREAR OBJETO DE DETALLE
+|--------------------------------------------------------------------------
+*/
+
+function crearDetalle(medicamento, lote, cantidad) {
+
+  return {
+    lote_id: lote.id,
+    cantidad: Number(cantidad),
+
+    medicamento_id: medicamento.id,
+    codigo: medicamento.codigo,
+    nombre: medicamento.nombre,
+    concentracion: medicamento.concentracion || '',
+    forma_farmaceutica: medicamento.forma_farmaceutica || '',
+    unidad_presentacion: medicamento.unidad_presentacion || '',
+
+    codigo_lote: lote.codigo_lote,
+    fecha_vencimiento: lote.fecha_vencimiento,
+    stock_disponible: Number(lote.cantidad_actual)
+  }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| LIMPIAR LÍNEA DE CAPTURA
+|--------------------------------------------------------------------------
+*/
+
+const limpiarLineaCaptura = async () => {
+
+  medicamentoSeleccionado.value = null
+
+  textoBusqueda.value = ''
+
+  resultadosMedicamentos.value = []
+
+  lotesDisponibles.value = []
+  loteSeleccionadoId.value = ''
+
+  cantidadDetalle.value = 1
+
+  indiceEditando.value = null
+
+  await nextTick()
+
+  buscadorMedicamento.value?.focus()
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| EDITAR DETALLE
+|--------------------------------------------------------------------------
+*/
+
+const editarDetalle = async (index) => {
+
+  const detalle = detalles.value[index]
+
+  if (!detalle) {
+    return
+  }
+
+  indiceEditando.value = index
+
+  medicamentoSeleccionado.value = {
+    id: detalle.medicamento_id,
+    codigo: detalle.codigo,
+    nombre: detalle.nombre,
+    concentracion: detalle.concentracion,
+    forma_farmaceutica: detalle.forma_farmaceutica,
+    unidad_presentacion: detalle.unidad_presentacion
+  }
+
+  textoBusqueda.value = ''
+
+  await cargarLotes(detalle.medicamento_id)
+
+  /*
+   * Después de cargar los lotes seleccionamos el lote
+   * específico que tenía el detalle.
+   */
+  const loteExiste = lotesDisponibles.value.some(
+    lote => String(lote.id) === String(detalle.lote_id)
+  )
+
+  if (loteExiste) {
+    loteSeleccionadoId.value = detalle.lote_id
+  }
+
+  cantidadDetalle.value = detalle.cantidad
+
+  await nextTick()
+
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  })
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CANCELAR EDICIÓN
+|--------------------------------------------------------------------------
+*/
+
+const cancelarEdicion = () => {
+
+  indiceEditando.value = null
+
+  limpiarLineaCaptura()
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ELIMINAR DETALLE
+|--------------------------------------------------------------------------
+*/
+
+const eliminarDetalle = (index) => {
+
+  const detalle = detalles.value[index]
+
+  if (!detalle) {
+    return
+  }
+
+  const confirmar = window.confirm(
+    `¿Desea eliminar "${detalle.nombre}" del detalle de la salida?`
+  )
+
+  if (!confirmar) {
+    return
+  }
+
+  detalles.value.splice(index, 1)
+
+  if (indiceEditando.value === index) {
+    cancelarEdicion()
+  }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| PROCESAR SALIDA
+|--------------------------------------------------------------------------
+*/
 
 const procesarSalida = async () => {
-    procesando.value = true
-    error.value = ''
-    mensajeExito.value = ''
 
-    try {
-        const { data } = await axios.post('api/salidas', form.value)
-        mensajeExito.value = data.message
-        
-        // Limpiamos el formulario para la siguiente salida
-        form.value.cantidad = 1
-        form.value.destino = ''
-        form.value.entregado_a = ''
-        form.value.observaciones = ''
-        medicamentoSeleccionado.value = ''
-        lotesDisponibles.value = []
-        
-        // Refrescamos los números del inventario
-        cargarInventario()
-    } catch (e) {
-        error.value = e.response?.data?.message || 'Revisa los campos requeridos.'
-    } finally {
-        procesando.value = false
+  error.value = ''
+  mensajeExito.value = ''
+
+  if (!puedeGuardar.value) {
+
+    error.value =
+      'Complete la fecha, establecimiento, solicitante y agregue al menos un medicamento.'
+
+    return
+  }
+
+  procesando.value = true
+
+  try {
+
+    /*
+     * Enviamos únicamente la estructura que espera
+     * SalidaController → SalidaService.
+     */
+    const payload = {
+      fecha_salida: form.value.fecha_salida,
+      establecimiento_id: Number(form.value.establecimiento_id),
+      solicitado_por: form.value.solicitado_por.trim(),
+      entregado_a: form.value.entregado_a.trim() || null,
+      observaciones: form.value.observaciones.trim() || null,
+
+      detalle: detalles.value.map(detalle => ({
+        lote_id: Number(detalle.lote_id),
+        cantidad: Number(detalle.cantidad)
+      }))
     }
+
+    const respuesta = await axios.post(
+      'api/salidas',
+      payload
+    )
+
+    mensajeExito.value =
+      respuesta.data?.message ||
+      'Salida registrada correctamente.'
+
+    /*
+     * Limpiamos todo después de una respuesta exitosa.
+     */
+    form.value = {
+      fecha_salida: obtenerFechaLocal(),
+      establecimiento_id: '',
+      solicitado_por: '',
+      entregado_a: '',
+      observaciones: ''
+    }
+
+    detalles.value = []
+
+    await limpiarLineaCaptura()
+
+  } catch (e) {
+
+    console.error(e)
+
+    /*
+     * Laravel puede devolver errores de validación
+     * en response.data.errors.
+     */
+    if (e.response?.status === 422) {
+
+      const errores = e.response.data.errors
+
+      if (errores) {
+
+        const mensajes = Object.values(errores)
+          .flat()
+          .join(' ')
+
+        error.value =
+          mensajes ||
+          e.response.data.message ||
+          'Revise los datos de la salida.'
+
+      } else {
+
+        error.value =
+          e.response.data.message ||
+          'Revise los datos de la salida.'
+      }
+
+    } else {
+
+      error.value =
+        e.response?.data?.message ||
+        'No se pudo registrar la salida.'
+    }
+
+  } finally {
+
+    procesando.value = false
+  }
 }
 
-onMounted(() => {
-    cargarInventario()
+
+/*
+|--------------------------------------------------------------------------
+| INICIO
+|--------------------------------------------------------------------------
+*/
+
+onMounted(async () => {
+
+  await cargarEstablecimientos()
+
+  await nextTick()
+
+  buscadorMedicamento.value?.focus()
 })
 </script>
