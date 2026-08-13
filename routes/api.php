@@ -15,6 +15,8 @@ Route::post('/login', [AuthController::class, 'login']);
 // Inventario
 Route::middleware('auth:sanctum')
     ->get('/inventario', [InventarioController::class, 'index']);
+Route::middleware('auth:sanctum')
+    ->get('/kardex', [InventarioController::class, 'kardex']);
 
 // Establecimientos
 Route::middleware('auth:sanctum')
@@ -31,6 +33,8 @@ Route::middleware('auth:sanctum')
 // Ingresos
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/ingresos', [IngresoController::class, 'store']);
+Route::middleware('auth:sanctum')
+    ->get('/ingresos/{ingreso}/pdf', [IngresoController::class, 'pdf']);
 
 // Salidas
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])

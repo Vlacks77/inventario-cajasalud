@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Medicamento;
+use App\Models\Lote;
 use Illuminate\Http\Request;
 
 class InventarioController extends Controller
@@ -32,5 +33,28 @@ class InventarioController extends Controller
         });
 
         return response()->json($inventario);
+    }
+
+    /** Consulta de movimientos de ingreso para el Kardex institucional. */
+    public function kardex(Request $request)
+    {
+        $buscar = trim($request->query('buscar', ''));
+        $procedencia = trim($request->query('procedencia', ''));
+
+        $lotes = Lote::with(['medicamento.partidaPresupuestaria', 'proveedor', 'ingreso'])
+            ->whereNotNull('ingreso_id')
+            ->when($buscar !== '', function ($query) use ($buscar) {
+                $query->whereHas('medicamento', function ($producto) use ($buscar) {
+                    $producto->where('codigo', 'like', "%{$buscar}%")
+                        ->orWhere('nombre', 'like', "%{$buscar}%")
+                        ->orWhere('concentracion', 'like', "%{$buscar}%");
+                });
+            })
+            ->when($procedencia !== '', fn ($query) => $query->whereHas('proveedor', fn ($p) => $p->where('nombre', 'like', "%{$procedencia}%")))
+            ->when($request->filled('fecha_desde'), fn ($query) => $query->whereHas('ingreso', fn ($i) => $i->whereDate('fecha_ingreso', '>=', $request->query('fecha_desde'))))
+            ->when($request->filled('fecha_hasta'), fn ($query) => $query->whereHas('ingreso', fn ($i) => $i->whereDate('fecha_ingreso', '<=', $request->query('fecha_hasta'))))
+            ->latest('id')->limit(300)->get();
+
+        return response()->json($lotes);
     }
 }
