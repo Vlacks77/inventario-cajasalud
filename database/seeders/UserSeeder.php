@@ -14,12 +14,23 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(
-            ['username' => 'dra.almacen'],
+            ['username' => 'dra.carmen-almacen'],
             [
-                'name' => 'Dra. Encargada de Almacén',
+                'name' => 'Dra. Carmen Gutierrez- Encargada de Almacen',
                 'role' => 'almacen',
-                'email' => 'dra.almacen@cajasalud.local',
-                'password' => Hash::make('Caminos-Dra#2026!'),
+                'email' => 'dra.carmen-almacen@cajasalud.local',
+                'password' => Hash::make('cscgutierrez'),
+            ]
+        );
+
+
+        User::updateOrCreate(
+            ['username' => 'csc'],
+            [
+                'name' => 'Kdu - Encargado de Sistemas',
+                'role' => 'admin',
+                'email' => 'csc@cajasalud.local',
+                'password' => Hash::make('+kdu140876$'),
             ]
         );
 

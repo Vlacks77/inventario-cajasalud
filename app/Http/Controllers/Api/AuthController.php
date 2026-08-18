@@ -41,4 +41,33 @@ class AuthController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Devuelve los datos del usuario asociado al token actual.
+     * Se utiliza para validar que la sesión guardada en el navegador
+     * siga siendo válida antes de mostrar la aplicación.
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'role' => $user->role,
+        ]);
+    }
+
+    /**
+     * Invalida el token actual del usuario.
+     */
+    public function logout(Request $request)
+    {
+        $request->user()?->currentAccessToken()?->delete();
+
+        return response()->json([
+            'message' => 'Sesión cerrada correctamente.',
+        ]);
+    }
 }

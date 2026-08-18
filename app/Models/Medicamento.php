@@ -20,6 +20,7 @@ class Medicamento extends Model
         'partida_presupuestaria_id',
         'nombre',
         'tipo_producto',
+        'grupo_producto',
         'concentracion',
         'forma_farmaceutica',
         'unidad_presentacion',

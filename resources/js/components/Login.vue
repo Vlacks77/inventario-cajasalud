@@ -50,7 +50,7 @@
               type="text"
               v-model.trim="usuario"
               class="form-control form-control-lg fs-6 border-soft-blue bg-light"
-              placeholder="Ej: dra.almacen"
+              placeholder="Ej: dra.carmen-almacen"
               autocomplete="username"
               required
               :disabled="procesando"

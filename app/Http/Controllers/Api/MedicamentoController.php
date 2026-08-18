@@ -18,7 +18,8 @@ class MedicamentoController extends Controller
                 $query->where(function ($q) use ($buscar) {
                     $q->where('codigo', 'like', "%{$buscar}%")
                       ->orWhere('nombre', 'like', "%{$buscar}%")
-                      ->orWhere('concentracion', 'like', "%{$buscar}%");
+                      ->orWhere('concentracion', 'like', "%{$buscar}%")
+                      ->orWhere('grupo_producto', 'like', "%{$buscar}%");
                 });
             })
             ->orderBy('nombre')
@@ -31,6 +32,7 @@ class MedicamentoController extends Controller
                 'forma_farmaceutica',
                 'unidad_presentacion',
                 'tipo_producto',
+                'grupo_producto',
                 'partida_presupuestaria_id',
             ]);
 

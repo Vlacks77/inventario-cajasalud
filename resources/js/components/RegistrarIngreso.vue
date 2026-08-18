@@ -207,10 +207,11 @@ const valorCatalogo = valor => {
   const texto = String(valor ?? '').trim();
   return texto && texto.toLowerCase() !== 'no aplica' ? texto : '';
 };
-const descripcionProducto = producto => `${producto.nombre}${valorCatalogo(producto.concentracion) ? ` ${valorCatalogo(producto.concentracion)}` : ''}`;
+const descripcionProducto = producto => producto?.nombre || '';
 const formatoFormaUnidad = (forma, unidad) => {
   const valores = [forma, unidad].map(valorCatalogo).filter(Boolean);
-  return valores.length ? valores.join(' / ') : '—';
+  const unicos = [...new Set(valores)];
+  return unicos.length ? unicos.join(' / ') : '—';
 };
 const posicionarDropdown = async (item, indice) => {
   await nextTick();
@@ -255,7 +256,7 @@ const buscarProductos = (item, indice) => {
 const seleccionarProducto = (item,p) => {
   item.producto_id=p.id;
   item.producto=p;
-  item.busqueda=`${p.codigo} - ${p.nombre}${valorCatalogo(p.concentracion) ? ` ${valorCatalogo(p.concentracion)}` : ''}`;
+  item.busqueda=`${p.codigo} - ${p.nombre}`;
   cerrarResultados(item);
 };
 onMounted(() => {
@@ -488,7 +489,7 @@ const descargarPdf = async () => { const { data } = await axios.get(`api/ingreso
 
 .ingreso-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   margin: 0 28px 24px;
   padding-top: 18px;
