@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\InventarioController;
+use App\Http\Controllers\Api\KardexController;
 use App\Http\Controllers\Api\SalidaController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EstablecimientoController;
@@ -21,7 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')
     ->get('/inventario', [InventarioController::class, 'index']);
 Route::middleware('auth:sanctum')
-    ->get('/kardex', [InventarioController::class, 'kardex']);
+    ->get('/kardex', [KardexController::class, 'index']);
 
 // Establecimientos
 Route::middleware('auth:sanctum')

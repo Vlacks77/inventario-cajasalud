@@ -65,6 +65,14 @@
           >
             Ver inventario
           </button>
+
+          <button
+            class="csc-nav-link"
+            :class="{ active: vistaActual === 'kardex' }"
+            @click="vistaActual = 'kardex'"
+          >
+            Kardex / movimientos
+          </button>
         </nav>
 
         <RegistrarIngreso
@@ -73,6 +81,7 @@
         />
         <RegistrarSalida v-if="vistaActual === 'salida' && puedeModificar" />
         <Inventario v-if="vistaActual === 'inventario'" />
+        <Kardex v-if="vistaActual === 'kardex'" />
 
         <footer class="csc-system-credits" aria-label="Créditos del sistema">
           <a
@@ -101,6 +110,7 @@ import { computed, onMounted, ref } from 'vue';
 import axios from 'axios';
 import Login from './components/Login.vue';
 import Inventario from './components/Inventario.vue';
+import Kardex from './components/Kardex.vue';
 import RegistrarSalida from './components/RegistrarSalida.vue';
 import RegistrarIngreso from './components/RegistrarIngreso.vue';
 

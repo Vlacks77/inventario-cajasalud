@@ -10,15 +10,12 @@ class InventarioController extends Controller
 {
     /**
      * Stock actual consolidado por producto.
-     *
-     * Este endpoint no modifica inventario. Lee la cantidad_actual de cada lote
-     * y calcula el stock disponible y el próximo vencimiento.
      */
     public function index(Request $request)
     {
         $buscar = trim($request->query('buscar', ''));
         $partida = trim($request->query('partida', ''));
-        $tipo = trim($request->query('tipo', ''));
+        $grupo = trim($request->query('grupo', ''));
         $estadoStock = trim($request->query('estado_stock', ''));
         $vencimiento = trim($request->query('vencimiento', ''));
 
@@ -26,8 +23,10 @@ class InventarioController extends Controller
                 'partidaPresupuestaria:id,codigo,nombre',
                 'lotes' => function ($query) {
                     $query->where('cantidad_actual', '>', 0)
-                        ->with('proveedor:id,nombre')
-                        ->orderBy('fecha_vencimiento');
+                        ->with(['proveedor:id,nombre', 'ingreso:id,fecha_ingreso'])
+                        ->orderByRaw('fecha_vencimiento IS NULL')
+                        ->orderBy('fecha_vencimiento')
+                        ->orderBy('id');
                 },
             ])
             ->where('estado', true)
@@ -40,11 +39,9 @@ class InventarioController extends Controller
                 });
             })
             ->when($partida !== '', function ($query) use ($partida) {
-                $query->whereHas('partidaPresupuestaria', function ($q) use ($partida) {
-                    $q->where('codigo', $partida);
-                });
+                $query->whereHas('partidaPresupuestaria', fn ($q) => $q->where('codigo', $partida));
             })
-            ->when($tipo !== '', fn ($query) => $query->where('tipo_producto', $tipo))
+            ->when($grupo !== '', fn ($query) => $query->where('grupo_producto', $grupo))
             ->orderBy('nombre')
             ->get();
 
@@ -65,13 +62,9 @@ class InventarioController extends Controller
             $vencimientoEstado = 'SIN_VENCIMIENTO';
             if ($proximo) {
                 $fecha = $proximo->copy()->startOfDay();
-                if ($fecha->lt($hoy)) {
-                    $vencimientoEstado = 'VENCIDO';
-                } elseif ($fecha->lte($limiteVencimiento)) {
-                    $vencimientoEstado = 'PROXIMO';
-                } else {
-                    $vencimientoEstado = 'VIGENTE';
-                }
+                $vencimientoEstado = $fecha->lt($hoy)
+                    ? 'VENCIDO'
+                    : ($fecha->lte($limiteVencimiento) ? 'PROXIMO' : 'VIGENTE');
             }
 
             return [
@@ -81,7 +74,6 @@ class InventarioController extends Controller
                 'concentracion' => $producto->concentracion,
                 'forma_farmaceutica' => $producto->forma_farmaceutica,
                 'unidad_presentacion' => $producto->unidad_presentacion,
-                'tipo_producto' => $producto->tipo_producto,
                 'grupo_producto' => $producto->grupo_producto,
                 'stock_minimo' => (int) $producto->stock_minimo,
                 'stock_total' => $stockTotal,
@@ -95,9 +87,16 @@ class InventarioController extends Controller
                 'lotes' => $producto->lotes->map(fn ($lote) => [
                     'id' => $lote->id,
                     'codigo_lote' => $lote->codigo_lote,
+                    'fecha_ingreso' => $lote->ingreso?->fecha_ingreso?->format('Y-m-d'),
                     'fecha_vencimiento' => $lote->fecha_vencimiento?->format('Y-m-d'),
                     'cantidad_actual' => (int) $lote->cantidad_actual,
                     'precio_unitario' => $lote->precio_unitario,
+                    'valor_actual' => number_format(
+                        ((int) $lote->cantidad_actual) * (float) $lote->precio_unitario,
+                        2,
+                        '.',
+                        ''
+                    ),
                     'proveedor' => $lote->proveedor?->nombre,
                 ])->values(),
             ];
@@ -112,28 +111,5 @@ class InventarioController extends Controller
         }
 
         return response()->json($resultado->values()->all());
-    }
-
-    /** Consulta histórica de movimientos de ingreso para el Kardex. */
-    public function kardex(Request $request)
-    {
-        $buscar = trim($request->query('buscar', ''));
-        $procedencia = trim($request->query('procedencia', ''));
-
-        $lotes = \App\Models\Lote::with(['medicamento.partidaPresupuestaria', 'proveedor', 'ingreso'])
-            ->whereNotNull('ingreso_id')
-            ->when($buscar !== '', function ($query) use ($buscar) {
-                $query->whereHas('medicamento', function ($producto) use ($buscar) {
-                    $producto->where('codigo', 'like', "%{$buscar}%")
-                        ->orWhere('nombre', 'like', "%{$buscar}%")
-                        ->orWhere('concentracion', 'like', "%{$buscar}%");
-                });
-            })
-            ->when($procedencia !== '', fn ($query) => $query->whereHas('proveedor', fn ($p) => $p->where('nombre', 'like', "%{$procedencia}%")))
-            ->when($request->filled('fecha_desde'), fn ($query) => $query->whereHas('ingreso', fn ($i) => $i->whereDate('fecha_ingreso', '>=', $request->query('fecha_desde'))))
-            ->when($request->filled('fecha_hasta'), fn ($query) => $query->whereHas('ingreso', fn ($i) => $i->whereDate('fecha_ingreso', '<=', $request->query('fecha_hasta'))))
-            ->latest('id')->limit(300)->get();
-
-        return response()->json($lotes);
     }
 }
