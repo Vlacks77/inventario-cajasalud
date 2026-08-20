@@ -13,6 +13,8 @@ class Salida extends Model
 
     protected $fillable = [
         'fecha_salida',
+        'numero_salida',
+        'numero_pedido',
         'establecimiento_id',
         'solicitado_por',
         'entregado_a',

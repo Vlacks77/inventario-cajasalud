@@ -44,4 +44,7 @@ Route::middleware('auth:sanctum')
 
 // Salidas
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->get('/salidas/siguiente-numero', [SalidaController::class, 'siguienteNumero']);
+
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/salidas', [SalidaController::class, 'store']);

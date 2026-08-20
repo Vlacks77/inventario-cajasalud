@@ -40,113 +40,64 @@
         <!-- ===================================================== -->
 
         <section class="mb-4">
-          <h2 class="h5 border-bottom pb-2 text-primary">
+          <div class="csc-section-title csc-section-orange mb-3">
             <i class="bi bi-file-earmark-medical me-2"></i>
-            1. Datos de la Salida
-          </h2>
+            1. Encabezado de la salida
+          </div>
 
           <div class="row g-3">
 
-            <!-- FECHA -->
             <div class="col-md-3">
-              <label class="form-label fw-bold">
-                Fecha de salida *
-              </label>
-
-              <input
-                v-model="form.fecha_salida"
-                type="date"
-                class="form-control"
-                required
-              >
+              <label class="form-label fw-bold">Fecha de salida</label>
+              <input v-model="form.fecha_salida" type="date" class="form-control" required>
             </div>
 
-            <!-- ESTABLECIMIENTO -->
-            <div class="col-md-5">
-              <label class="form-label fw-bold">
-                Establecimiento / Destino *
-              </label>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">N.º de salida</label>
+              <input :value="numeroSalida ?? 'Cargando...'" type="text" class="form-control fw-bold text-center" readonly>
+              <small class="text-muted">Correlativo automático</small>
+            </div>
 
-              <select
-                v-model="form.establecimiento_id"
-                class="form-select"
-                required
-                :disabled="cargandoEstablecimientos"
-              >
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Almacén de origen</label>
+              <input value="REGIONAL LA PAZ" type="text" class="form-control" readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Destino</label>
+              <select v-model="form.establecimiento_id" class="form-select" required :disabled="cargandoEstablecimientos">
                 <option value="" disabled>
-                  {{
-                    cargandoEstablecimientos
-                      ? 'Cargando establecimientos...'
-                      : 'Seleccione un establecimiento...'
-                  }}
+                  {{ cargandoEstablecimientos ? 'Cargando establecimientos...' : 'Seleccione un establecimiento...' }}
                 </option>
-
-                <option
-                  v-for="establecimiento in establecimientos"
-                  :key="establecimiento.id"
-                  :value="establecimiento.id"
-                >
-                  {{ establecimiento.nombre }}
-                  <span v-if="establecimiento.sigla">
-                    ({{ establecimiento.sigla }})
-                  </span>
+                <option v-for="establecimiento in establecimientos" :key="establecimiento.id" :value="establecimiento.id">
+                  {{ establecimiento.nombre }}<span v-if="establecimiento.sigla"> ({{ establecimiento.sigla }})</span>
                 </option>
               </select>
-
-              <small
-                v-if="!cargandoEstablecimientos && establecimientos.length === 0"
-                class="text-danger"
-              >
-                No hay establecimientos activos registrados.
-              </small>
             </div>
 
-            <!-- SOLICITADO POR -->
-            <div class="col-md-4">
-              <label class="form-label fw-bold">
-                Solicitado por *
-              </label>
-
-              <input
-                v-model.trim="form.solicitado_por"
-                type="text"
-                class="form-control"
-                placeholder="Nombre del solicitante"
-                required
-              >
-            </div>
-
-            <!-- ENTREGADO A -->
             <div class="col-md-6">
-              <label class="form-label">
-                Entregado a
-              </label>
-
-              <input
-                v-model.trim="form.entregado_a"
-                type="text"
-                class="form-control"
-                placeholder="Nombre del doctor, enfermera, responsable, etc."
-              >
+              <label class="form-label fw-bold">N.º de pedido / documento</label>
+              <input v-model.trim="form.numero_pedido" type="text" class="form-control" maxlength="100" placeholder="Número del documento físico de pedido">
+              <small class="text-muted">Es el número consignado en el documento físico; no es necesariamente correlativo.</small>
             </div>
 
-            <!-- OBSERVACIONES -->
             <div class="col-md-6">
-              <label class="form-label">
-                Observaciones
-              </label>
+              <label class="form-label fw-bold">Responsable que solicita</label>
+              <input v-model.trim="form.solicitado_por" type="text" class="form-control" placeholder="Nombre del solicitante" required>
+            </div>
 
-              <input
-                v-model.trim="form.observaciones"
-                type="text"
-                class="form-control"
-                placeholder="Observaciones adicionales"
-              >
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Responsable que recibe</label>
+              <input v-model.trim="form.entregado_a" type="text" class="form-control" placeholder="Nombre del responsable que recibe">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-bold">Observaciones</label>
+              <textarea v-model.trim="form.observaciones" class="form-control" rows="2" placeholder="Observaciones adicionales"></textarea>
             </div>
 
           </div>
         </section>
-
 
         <!-- ===================================================== -->
         <!-- AGREGAR MEDICAMENTO -->
@@ -155,7 +106,7 @@
         <section class="mb-4">
           <h2 class="h5 border-bottom pb-2 text-primary">
             <i class="bi bi-capsule me-2"></i>
-            2. Agregar Medicamentos
+            2. Agregar productos
           </h2>
 
           <div class="row g-3">
@@ -164,7 +115,7 @@
             <div class="col-md-6 position-relative">
 
               <label class="form-label fw-bold">
-                Buscar medicamento *
+                Buscar producto *
               </label>
 
               <div class="input-group">
@@ -177,7 +128,7 @@
                   v-model="textoBusqueda"
                   type="text"
                   class="form-control"
-                  placeholder="Código o nombre del medicamento..."
+                  placeholder="Código LINAME o nombre del producto..."
                   autocomplete="off"
                   @input="buscarMedicamentos"
                 >
@@ -216,14 +167,14 @@
                   v-if="resultadosMedicamentos.length === 0 && !buscandoMedicamentos"
                   class="p-3 text-muted text-center"
                 >
-                  No se encontraron medicamentos.
+                  No se encontraron productos.
                 </div>
 
                 <div
                   v-if="buscandoMedicamentos"
                   class="p-3 text-muted text-center"
                 >
-                  Buscando...
+                  Buscando productos...
                 </div>
 
               </div>
@@ -347,8 +298,8 @@
 
               {{
                 indiceEditando !== null
-                  ? 'Actualizar medicamento'
-                  : 'Agregar medicamento'
+                  ? 'Actualizar producto'
+                  : 'Agregar producto'
               }}
             </button>
 
@@ -507,10 +458,10 @@
           >
             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
 
-            Todavía no hay medicamentos agregados a esta salida.
+            Todavía no hay productos agregados a esta salida.
 
             <div class="small mt-1">
-              Busque un medicamento arriba y agréguelo al detalle.
+              Busque un producto arriba y agréguelo al detalle.
             </div>
           </div>
 
@@ -574,10 +525,14 @@ import axios from 'axios'
 const form = ref({
   fecha_salida: obtenerFechaLocal(),
   establecimiento_id: '',
+  numero_pedido: '',
   solicitado_por: '',
   entregado_a: '',
   observaciones: ''
 })
+
+const numeroSalida = ref(null)
+const cargandoNumeroSalida = ref(false)
 
 
 /*
@@ -726,6 +681,27 @@ function formatearFecha(fecha) {
   }
 
   return `${partes[2]}/${partes[1]}/${partes[0]}`
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| SIGUIENTE NÚMERO DE SALIDA
+|--------------------------------------------------------------------------
+*/
+
+const cargarSiguienteNumeroSalida = async () => {
+  cargandoNumeroSalida.value = true
+
+  try {
+    const respuesta = await axios.get('api/salidas/siguiente-numero')
+    numeroSalida.value = respuesta.data?.numero_salida ?? null
+  } catch (e) {
+    console.error(e)
+    numeroSalida.value = null
+  } finally {
+    cargandoNumeroSalida.value = false
+  }
 }
 
 
@@ -1191,7 +1167,7 @@ const procesarSalida = async () => {
   if (!puedeGuardar.value) {
 
     error.value =
-      'Complete la fecha, establecimiento, solicitante y agregue al menos un medicamento.'
+      'Complete la fecha, destino, responsable y agregue al menos un producto.'
 
     return
   }
@@ -1207,6 +1183,7 @@ const procesarSalida = async () => {
     const payload = {
       fecha_salida: form.value.fecha_salida,
       establecimiento_id: Number(form.value.establecimiento_id),
+      numero_pedido: form.value.numero_pedido.trim() || null,
       solicitado_por: form.value.solicitado_por.trim(),
       entregado_a: form.value.entregado_a.trim() || null,
       observaciones: form.value.observaciones.trim() || null,
@@ -1232,10 +1209,13 @@ const procesarSalida = async () => {
     form.value = {
       fecha_salida: obtenerFechaLocal(),
       establecimiento_id: '',
+      numero_pedido: '',
       solicitado_por: '',
       entregado_a: '',
       observaciones: ''
     }
+
+    numeroSalida.value = Number(respuesta.data?.salida?.numero_salida || 0) + 1
 
     detalles.value = []
 
@@ -1293,10 +1273,25 @@ const procesarSalida = async () => {
 
 onMounted(async () => {
 
-  await cargarEstablecimientos()
+  await Promise.all([
+    cargarEstablecimientos(),
+    cargarSiguienteNumeroSalida()
+  ])
 
   await nextTick()
 
   buscadorMedicamento.value?.focus()
 })
 </script>
+<style scoped>
+.csc-section-title {
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+}
+.csc-section-orange {
+  background: var(--csc-orange, #e85d04);
+}
+</style>

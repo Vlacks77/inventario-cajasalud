@@ -23,6 +23,7 @@ class SalidaService
             // Crear la cabecera de la salida
             $salida = Salida::create([
                 'fecha_salida'      => $datos['fecha_salida'],
+                'numero_pedido'     => $datos['numero_pedido'] ?? null,
                 'establecimiento_id'=> $datos['establecimiento_id'],
                 'solicitado_por'    => $datos['solicitado_por'],
                 'entregado_a'       => $datos['entregado_a'] ?? null,
@@ -30,6 +31,12 @@ class SalidaService
                 'estado'            => 'ACTIVA',
                 'usuario_id'        => Auth::id(),
             ]);
+
+            // El número de salida es correlativo y queda ligado al ID
+            // interno de la salida, garantizando unicidad incluso con
+            // registros concurrentes.
+            $salida->numero_salida = $salida->id;
+            $salida->save();
 
             // Procesar cada medicamento de la salida
             foreach ($datos['detalle'] as $item) {
