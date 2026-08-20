@@ -40,7 +40,7 @@
         <!-- ===================================================== -->
 
         <section class="mb-4">
-          <div class="csc-section-title csc-section-orange mb-3">
+          <div class="csc-section-title csc-section-blue mb-3">
             <i class="bi bi-file-earmark-medical me-2"></i>
             1. Encabezado de la salida
           </div>
@@ -60,7 +60,7 @@
 
             <div class="col-md-6">
               <label class="form-label fw-bold">Almacén de origen</label>
-              <input value="REGIONAL LA PAZ" type="text" class="form-control" readonly>
+              <input v-model.trim="form.almacen_origen" type="text" class="form-control" maxlength="150">
             </div>
 
             <div class="col-md-6">
@@ -104,10 +104,10 @@
         <!-- ===================================================== -->
 
         <section class="mb-4">
-          <h2 class="h5 border-bottom pb-2 text-primary">
+          <div class="csc-section-title csc-section-blue mb-3">
             <i class="bi bi-capsule me-2"></i>
             2. Agregar productos
-          </h2>
+          </div>
 
           <div class="row g-3">
 
@@ -330,18 +330,11 @@
 
         <section class="mb-4">
 
-          <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-
-            <h2 class="h5 text-primary mb-0">
-              <i class="bi bi-list-check me-2"></i>
-              3. Detalle de la Salida
-            </h2>
-
-            <span class="badge bg-primary">
-              {{ detalles.length }}
-              {{ detalles.length === 1 ? 'medicamento' : 'medicamentos' }}
+          <div class="csc-section-title csc-section-blue mb-3 d-flex justify-content-between align-items-center csc-detail-heading">
+            <span><i class="bi bi-list-check me-2"></i>3. Detalle de la Salida</span>
+            <span class="csc-count-badge">
+              {{ detalles.length }} {{ detalles.length === 1 ? 'medicamento' : 'medicamentos' }}
             </span>
-
           </div>
 
 
@@ -524,6 +517,7 @@ import axios from 'axios'
 
 const form = ref({
   fecha_salida: obtenerFechaLocal(),
+  almacen_origen: 'REGIONAL LA PAZ',
   establecimiento_id: '',
   numero_pedido: '',
   solicitado_por: '',
@@ -630,6 +624,7 @@ const puedeAgregarDetalle = computed(() => {
 const puedeGuardar = computed(() => {
   return (
     form.value.fecha_salida &&
+    form.value.almacen_origen.trim() &&
     form.value.establecimiento_id &&
     form.value.solicitado_por.trim() &&
     detalles.value.length > 0
@@ -1167,7 +1162,7 @@ const procesarSalida = async () => {
   if (!puedeGuardar.value) {
 
     error.value =
-      'Complete la fecha, destino, responsable y agregue al menos un producto.'
+      'Complete la fecha, almacén de origen, destino, responsable y agregue al menos un producto.'
 
     return
   }
@@ -1182,6 +1177,7 @@ const procesarSalida = async () => {
      */
     const payload = {
       fecha_salida: form.value.fecha_salida,
+      almacen_origen: form.value.almacen_origen.trim(),
       establecimiento_id: Number(form.value.establecimiento_id),
       numero_pedido: form.value.numero_pedido.trim() || null,
       solicitado_por: form.value.solicitado_por.trim(),
@@ -1208,6 +1204,7 @@ const procesarSalida = async () => {
      */
     form.value = {
       fecha_salida: obtenerFechaLocal(),
+      almacen_origen: 'REGIONAL LA PAZ',
       establecimiento_id: '',
       numero_pedido: '',
       solicitado_por: '',
@@ -1291,7 +1288,41 @@ onMounted(async () => {
   color: #fff;
   text-align: center;
 }
-.csc-section-orange {
-  background: var(--csc-orange, #e85d04);
+.csc-section-blue {
+  background: #0b3d62;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  box-shadow: 0 5px 14px rgba(11, 61, 98, .12);
+}
+.csc-count-badge {
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.csc-detail-heading {
+  position: relative;
+  justify-content: center !important;
+}
+.csc-detail-heading > span:first-child {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.csc-detail-heading .csc-count-badge {
+  position: absolute;
+  right: 16px;
+}
+@media (max-width: 640px) {
+  .csc-detail-heading { min-height: 64px; }
+  .csc-detail-heading > span:first-child { white-space: normal; padding-right: 90px; }
 }
 </style>

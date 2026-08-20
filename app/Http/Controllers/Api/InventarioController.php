@@ -19,6 +19,25 @@ class InventarioController extends Controller
         $estadoStock = trim($request->query('estado_stock', ''));
         $vencimiento = trim($request->query('vencimiento', ''));
 
+        // Si el buscador recibe un valor seleccionado con el formato
+        // "CÓDIGO - NOMBRE", conservamos el código para que la búsqueda
+        // siga funcionando. Esto también hace el filtro tolerante a valores
+        // guardados por versiones anteriores del frontend.
+        $terminosBusqueda = [];
+        if ($buscar !== '') {
+            $terminosBusqueda[] = $buscar;
+
+            if (str_contains($buscar, ' - ')) {
+                [$codigo, $nombre] = array_pad(explode(' - ', $buscar, 2), 2, '');
+                if (trim($codigo) !== '') {
+                    $terminosBusqueda[] = trim($codigo);
+                }
+                if (trim($nombre) !== '') {
+                    $terminosBusqueda[] = trim($nombre);
+                }
+            }
+        }
+
         $productos = Medicamento::with([
                 'partidaPresupuestaria:id,codigo,nombre',
                 'lotes' => function ($query) {
@@ -30,12 +49,16 @@ class InventarioController extends Controller
                 },
             ])
             ->where('estado', true)
-            ->when($buscar !== '', function ($query) use ($buscar) {
-                $query->where(function ($q) use ($buscar) {
-                    $q->where('codigo', 'like', "%{$buscar}%")
-                        ->orWhere('nombre', 'like', "%{$buscar}%")
-                        ->orWhere('concentracion', 'like', "%{$buscar}%")
-                        ->orWhere('grupo_producto', 'like', "%{$buscar}%");
+            ->when(!empty($terminosBusqueda), function ($query) use ($terminosBusqueda) {
+                $query->where(function ($q) use ($terminosBusqueda) {
+                    foreach (array_unique($terminosBusqueda) as $termino) {
+                        $q->orWhere(function ($subQuery) use ($termino) {
+                            $subQuery->where('codigo', 'like', "%{$termino}%")
+                                ->orWhere('nombre', 'like', "%{$termino}%")
+                                ->orWhere('concentracion', 'like', "%{$termino}%")
+                                ->orWhere('grupo_producto', 'like', "%{$termino}%");
+                        });
+                    }
                 });
             })
             ->when($partida !== '', function ($query) use ($partida) {

@@ -3,9 +3,9 @@
     <div class="kardex-hero">
       <div>
         <h2>Kardex / Movimientos</h2>
-        <p>Consulta la trazabilidad de ingresos y, posteriormente, de salidas del almacén.</p>
+        <p>Consulta la trazabilidad completa de ingresos y salidas del almacén.</p>
       </div>
-      <span class="movement-badge">INGRESOS</span>
+      <span class="movement-badge">INGRESOS + SALIDAS</span>
     </div>
 
     <div class="kardex-body">
@@ -43,8 +43,8 @@
           </label>
 
           <label>
-            Procedencia / proveedor
-            <input v-model="filtros.procedencia" class="form-control" placeholder="Proveedor">
+            Procedencia / destino
+            <input v-model="filtros.procedencia" class="form-control" placeholder="Proveedor o destino">
           </label>
           <label>
             Desde
@@ -69,6 +69,7 @@
             <tr>
               <th>Movimiento</th>
               <th>Fecha</th>
+              <th>Registrado por</th>
               <th>Nota / remisión</th>
               <th>Partida</th>
               <th>LINAME</th>
@@ -83,30 +84,37 @@
           </thead>
           <tbody>
             <tr v-if="cargando">
-              <td colspan="12" class="empty-row">Cargando movimientos…</td>
+              <td colspan="13" class="empty-row">Cargando movimientos…</td>
             </tr>
             <tr v-else-if="kardex.length === 0">
-              <td colspan="12" class="empty-row">No se encontraron movimientos con esos filtros.</td>
+              <td colspan="13" class="empty-row">No se encontraron movimientos con esos filtros.</td>
             </tr>
             <tr v-for="fila in kardex" :key="fila.id">
-              <td><span class="movement-pill">INGRESO</span></td>
-              <td>{{ fecha(fila.ingreso?.fecha_ingreso) }}</td>
+              <td><span class="movement-pill" :class="fila.tipo === 'SALIDA' ? 'movement-pill-out' : 'movement-pill-in'">{{ fila.tipo }}</span></td>
               <td>
-                {{ fila.ingreso?.numero_nota || '—' }}
-                <small v-if="fila.ingreso?.numero_remision">Rem. {{ fila.ingreso.numero_remision }}</small>
+                {{ fecha(fila.fecha) }}
+                <small v-if="fila.registrado_en">{{ fechaHora(fila.registrado_en) }}</small>
               </td>
-              <td>{{ fila.medicamento?.partida_presupuestaria?.codigo || '—' }}</td>
-              <td class="code-cell">{{ fila.medicamento?.codigo || '—' }}</td>
+              <td class="user-cell">
+                <strong>{{ fila.usuario || 'Sin trazabilidad histórica' }}</strong>
+                <small v-if="fila.usuario_username">@{{ fila.usuario_username }}</small>
+              </td>
               <td>
-                <strong>{{ fila.medicamento?.nombre || '—' }}</strong>
-                <small>{{ fila.medicamento?.forma_farmaceutica || '' }}</small>
+                {{ fila.referencia || '—' }}
+                <small v-if="fila.documento">{{ fila.tipo === 'SALIDA' ? 'Pedido' : 'Rem.' }} {{ fila.documento }}</small>
               </td>
-              <td>{{ fila.proveedor?.nombre || '—' }}</td>
-              <td>{{ fila.codigo_lote || '—' }}</td>
-              <td>{{ fecha(fila.fecha_vencimiento) }}</td>
-              <td class="text-end">{{ fila.cantidad_inicial }}</td>
+              <td>{{ fila.partida || '—' }}</td>
+              <td class="code-cell">{{ fila.codigo || '—' }}</td>
+              <td>
+                <strong>{{ fila.producto || '—' }}</strong>
+                <small>{{ fila.forma || '' }}</small>
+              </td>
+              <td>{{ fila.procedencia || '—' }}</td>
+              <td>{{ fila.lote || '—' }}</td>
+              <td>{{ fecha(fila.vencimiento) }}</td>
+              <td class="text-end" :class="fila.tipo === 'SALIDA' ? 'quantity-out' : 'quantity-in'">{{ fila.tipo === 'SALIDA' ? '−' : '+' }}{{ fila.cantidad }}</td>
               <td class="text-end">{{ moneda(fila.precio_unitario) }}</td>
-              <td class="text-end fw-bold">{{ moneda(fila.importe_total) }}</td>
+              <td class="text-end fw-bold">{{ moneda(fila.total) }}</td>
             </tr>
           </tbody>
         </table>
@@ -147,6 +155,18 @@ const fecha = value => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
   const [year, month, day] = raw.split('-').map(Number);
   return new Intl.DateTimeFormat('es-BO').format(new Date(year, month - 1, day));
+};
+
+const fechaHora = value => {
+  if (!value) return '—';
+  const normalizado = String(value).replace(' ', 'T');
+  const date = new Date(normalizado);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('es-BO', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    hour12: false,
+  }).format(date);
 };
 
 const cargarKardex = async () => {
@@ -234,12 +254,12 @@ onBeforeUnmount(() => {
 .suggestion-item:last-child { border-bottom:0; } .suggestion-item:hover { background:#eef5fa; }
 .suggestion-item strong { display:block; font-size:.78rem; } .suggestion-item small { display:block; margin-top:2px; color:#71808f; font-size:.7rem; }
 .table-wrap { overflow-x:auto; border:1px solid #dbe4eb; border-radius:10px; }
-.kardex-table { width:100%; min-width:1350px; border-collapse:separate; border-spacing:0; font-size:.84rem; }
+.kardex-table { width:100%; min-width:1510px; border-collapse:separate; border-spacing:0; font-size:.84rem; }
 .kardex-table th { background:#0b3d62; color:#fff; padding:10px 9px; border-right:1px solid rgba(255,255,255,.18); text-align:left; white-space:nowrap; font-size:.76rem; }
 .kardex-table th:first-child { border-top-left-radius:9px; } .kardex-table th:last-child { border-top-right-radius:9px; border-right:0; }
 .kardex-table td { padding:9px; border-bottom:1px solid #e4e9ee; border-right:1px solid #edf1f4; color:#26394b; vertical-align:middle; }
 .kardex-table td:last-child { border-right:0; } .kardex-table td strong { display:block; color:#173c5a; } .kardex-table td small { display:block; color:#71808f; font-size:.7rem; margin-top:2px; }
-.code-cell { font-weight:800; color:#0b3d62 !important; white-space:nowrap; } .movement-pill { display:inline-flex; padding:4px 7px; border-radius:999px; background:#e8f5ee; color:#137a45; font-size:.65rem; font-weight:800; }
+.user-cell { min-width:190px; } .user-cell strong { font-size:.78rem; } .code-cell { font-weight:800; color:#0b3d62 !important; white-space:nowrap; } .movement-pill { display:inline-flex; padding:4px 7px; border-radius:999px; font-size:.65rem; font-weight:800; } .movement-pill-in { background:#e8f5ee; color:#137a45; } .movement-pill-out { background:#fff0e8; color:#c84b00; } .quantity-in { color:#137a45; font-weight:800; } .quantity-out { color:#c84b00; font-weight:800; }
 .empty-row { padding:35px !important; text-align:center; color:#71808f; }
 @media (max-width:1000px) { .filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .filter-actions { grid-column:1/-1; } }
 @media (max-width:650px) { .kardex-body{padding:14px;} .filter-grid{grid-template-columns:1fr;} .filter-actions{grid-column:auto;} .kardex-hero{align-items:flex-start;flex-direction:column;} }

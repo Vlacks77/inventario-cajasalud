@@ -1,6 +1,6 @@
 <template>
-  <div class="min-vh-100 d-flex align-items-center justify-content-center bg-login py-5">
-    <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 440px; width: 100%;">
+  <div class="min-vh-100 d-flex align-items-center justify-content-center bg-login py-5 position-relative" style="background-image: linear-gradient(rgba(244, 247, 250, .50), rgba(231, 239, 245, .50)), url('img/login-almacen.png');">
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden position-relative" style="max-width: 440px; width: 100%;">
 
       <!-- Banner Superior Naranja Institucional -->
       <div class="bg-csc-orange text-center text-white p-4 position-relative">
@@ -155,7 +155,21 @@ const autenticar = async () => {
 
 <style scoped>
 .bg-login {
-  background: linear-gradient(135deg, #ffffff 0%, #e3f2fd 100%);
+  min-height: 100vh;
+  background-color: #edf2f6;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: loginWarehouseMotion 5s ease-in-out infinite alternate;
+}
+
+@keyframes loginWarehouseMotion {
+  0% { background-position: 40% 50%; background-size: 100%; }
+  100% { background-position: 60% 50%; background-size: 115%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-login { animation: none; }
 }
 
 .bg-csc-orange {

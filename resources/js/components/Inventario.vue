@@ -30,9 +30,34 @@
       <div class="filters-panel">
         <div class="filter-title">Buscar y filtrar</div>
         <div class="filter-grid">
-          <label>
+          <label class="product-search-field">
             Producto / LINAME
-            <input v-model="filtros.buscar" class="form-control" placeholder="Ej.: J0501, Abacavir 300 mg" @keyup.enter="cargarInventario">
+            <input
+              v-model="filtros.buscar"
+              class="form-control"
+              placeholder="Ej.: J0501, Abacavir 300 mg"
+              autocomplete="off"
+              @input="buscarSugerencias"
+              @focus="mostrarSugerencias = sugerencias.length > 0"
+              @keyup.enter="cargarInventario"
+            >
+            <div v-if="mostrarSugerencias" class="product-suggestions">
+              <button
+                v-for="producto in sugerencias"
+                :key="producto.id"
+                type="button"
+                class="product-suggestion"
+                @mousedown.prevent="seleccionarSugerencia(producto)"
+              >
+                <strong>{{ producto.codigo }}</strong>
+                <span>{{ producto.nombre }}</span>
+                <small v-if="producto.forma_farmaceutica">{{ producto.forma_farmaceutica }}</small>
+              </button>
+              <div v-if="!buscandoSugerencias && sugerencias.length === 0" class="suggestion-empty">
+                No se encontraron productos.
+              </div>
+              <div v-if="buscandoSugerencias" class="suggestion-empty">Buscando productos...</div>
+            </div>
           </label>
 
           <label>
@@ -188,13 +213,17 @@
 
 <script setup>
 import axios from 'axios';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 const productos = ref([]);
 const catalogoCompleto = ref([]);
 const cargando = ref(false);
 const error = ref('');
 const expandido = ref(null);
+const sugerencias = ref([]);
+const mostrarSugerencias = ref(false);
+const buscandoSugerencias = ref(false);
+let sugerenciaTimer = null;
 
 const filtros = reactive({
   buscar: '',
@@ -250,6 +279,45 @@ const estadoClass = estado => ({
   SIN_STOCK: 'status-danger',
 }[estado] || '');
 
+
+const buscarSugerencias = () => {
+  clearTimeout(sugerenciaTimer);
+  const termino = filtros.buscar.trim();
+
+  if (termino.length < 2) {
+    sugerencias.value = [];
+    mostrarSugerencias.value = false;
+    buscandoSugerencias.value = false;
+    return;
+  }
+
+  mostrarSugerencias.value = true;
+  buscandoSugerencias.value = true;
+
+  sugerenciaTimer = setTimeout(async () => {
+    try {
+      const { data } = await axios.get('api/medicamentos', {
+        params: { buscar: termino }
+      });
+      sugerencias.value = Array.isArray(data) ? data.slice(0, 8) : [];
+    } catch (e) {
+      sugerencias.value = [];
+    } finally {
+      buscandoSugerencias.value = false;
+    }
+  }, 220);
+};
+
+const seleccionarSugerencia = producto => {
+  // Guardamos únicamente el código LINAME como valor del filtro.
+  // Antes se enviaba "CÓDIGO - NOMBRE" y el backend lo buscaba como
+  // una sola cadena, por lo que no encontraba coincidencias.
+  filtros.buscar = producto.codigo;
+  sugerencias.value = [];
+  mostrarSugerencias.value = false;
+  cargarInventario();
+};
+
 const cargarInventario = async () => {
   cargando.value = true;
   error.value = '';
@@ -279,6 +347,7 @@ const toggleDetalle = id => {
 };
 
 onMounted(cargarInventario);
+onBeforeUnmount(() => clearTimeout(sugerenciaTimer));
 </script>
 
 <style scoped>
@@ -318,4 +387,40 @@ onMounted(cargarInventario);
 .no-lots { color:#71808f; font-size:.82rem; padding:8px 0; } .date-warning { color:#b84d00 !important; font-weight:700; } .date-danger { color:#b42318 !important; font-weight:700; }
 @media (max-width:1100px) { .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .filter-actions { grid-column:1/-1; } }
 @media (max-width:650px) { .inventory-body{padding:14px;} .summary-grid,.filter-grid{grid-template-columns:1fr;} .filter-actions{grid-column:auto;} }
+
+.product-search-field {
+  position: relative;
+}
+.product-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  background: #fff;
+  border: 1px solid #d8e1e8;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(11, 61, 98, .16);
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.product-suggestion {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf1f4;
+  background: #fff;
+  color: #243447;
+  padding: 9px 12px;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 9px;
+  align-items: center;
+}
+.product-suggestion:hover { background: #eef5fa; }
+.product-suggestion strong { color: #0b3d62; white-space: nowrap; }
+.product-suggestion span { font-weight: 600; }
+.product-suggestion small { grid-column: 2; color: #667788; }
+.suggestion-empty { padding: 12px; color: #667788; text-align: center; font-size: .9rem; }
 </style>

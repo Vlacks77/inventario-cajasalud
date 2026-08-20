@@ -76,12 +76,12 @@
         </nav>
 
         <RegistrarIngreso
-          v-if="vistaActual === 'ingreso' && puedeModificar"
+          v-show="vistaActual === 'ingreso' && puedeModificar"
           :recibido-por="usuarioActual.nombre"
         />
-        <RegistrarSalida v-if="vistaActual === 'salida' && puedeModificar" />
-        <Inventario v-if="vistaActual === 'inventario'" />
-        <Kardex v-if="vistaActual === 'kardex'" />
+        <RegistrarSalida v-show="vistaActual === 'salida' && puedeModificar" />
+        <Inventario v-show="vistaActual === 'inventario'" />
+        <Kardex v-show="vistaActual === 'kardex'" />
 
         <footer class="csc-system-credits" aria-label="Créditos del sistema">
           <a

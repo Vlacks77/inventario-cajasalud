@@ -9,6 +9,7 @@ use App\Models\Lote;
 use App\Models\Medicamento;
 use App\Models\Proveedor;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class IngresoController extends Controller
@@ -26,6 +27,7 @@ class IngresoController extends Controller
 
             $ingreso = Ingreso::create([
                 'proveedor_id' => $proveedor->id,
+                'usuario_id' => Auth::id(),
                 'almacen' => $datos['ingreso']['almacen'],
                 'fecha_ingreso' => $datos['ingreso']['fecha_ingreso'],
                 'numero_remision' => $datos['ingreso']['numero_remision'] ?? null,
@@ -44,6 +46,7 @@ class IngresoController extends Controller
                     'ingreso_id' => $ingreso->id,
                     'medicamento_id' => $producto->id,
                     'proveedor_id' => $proveedor->id,
+                'usuario_id' => Auth::id(),
                     'codigo_lote' => $item['lote']['codigo_lote'],
                     'fecha_vencimiento' => $item['lote']['fecha_vencimiento'] ?? null,
                     'cantidad_inicial' => $item['cantidad'],

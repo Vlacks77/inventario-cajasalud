@@ -23,6 +23,7 @@ class SalidaService
             // Crear la cabecera de la salida
             $salida = Salida::create([
                 'fecha_salida'      => $datos['fecha_salida'],
+                'almacen_origen'    => $datos['almacen_origen'],
                 'numero_pedido'     => $datos['numero_pedido'] ?? null,
                 'establecimiento_id'=> $datos['establecimiento_id'],
                 'solicitado_por'    => $datos['solicitado_por'],

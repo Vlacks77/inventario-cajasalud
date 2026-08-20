@@ -22,6 +22,7 @@ class SalidaController extends Controller
     {
         $datos = $request->validate([
             'fecha_salida' => 'required|date',
+            'almacen_origen' => 'required|string|max:150',
             'establecimiento_id' => 'required|exists:establecimientos,id',
             'numero_pedido' => 'nullable|string|max:100',
             'solicitado_por' => 'required|string|max:255',
