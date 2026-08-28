@@ -151,11 +151,52 @@
   <div class="cm-card">
     <div class="cm-title">3. Cierres mensuales registrados</div>
     <div v-if="!cierres.length" class="cm-empty">Todavía no existen cierres mensuales registrados.</div>
-    <div v-for="c in cierres" :key="c.id" class="cm-row"><div><strong>{{ etiquetaMes(c.periodo) }}</strong><span>{{c.almacen}} · {{c.total_items}} items · Cerrado: {{c.cerrado_en || '—'}}</span></div><div><button class="cm-blue" @click="ver(c)">Ver</button><button class="btn-csc-orange" @click="download(`/api/cierres-mensuales/${c.id}/pdf`)">PDF</button><button class="cm-blue" @click="download(`/api/cierres-mensuales/${c.id}/excel`)">EXCEL</button></div></div>
+    <div v-for="c in cierres" :key="c.id" class="cm-row">
+    <div><strong>{{ etiquetaMes(c.periodo) }}</strong><span>{{c.almacen}} · {{c.total_items}} items · Cerrado: {{c.cerrado_en || '—'}}</span></div>
+    <div>
+      <button class="cm-blue" @click="ver(c)">Ver</button>
+      <button class="btn-csc-orange" @click="download(`/api/cierres-mensuales/${c.id}/pdf`,{stock_only:1})">PDF solo con stock</button>
+      <button class="cm-blue" @click="download(`/api/cierres-mensuales/${c.id}/excel`)">EXCEL completo</button>
+    </div>
+  </div>
   </div>
   <div v-if="detalle" class="cm-card cm-closed-detail">
   <div class="cm-title">Detalle del cierre: {{ etiquetaMes(detalle.cierre.periodo) }}</div>
   <p class="cm-note">Cierre histórico de {{ detalle.detalles.length }} ítems. Los datos quedan congelados para trazabilidad y se muestran con la misma estructura del movimiento mensual físico valorado.</p>
+
+  <div class="cm-table-tools cm-closed-tools">
+    <input v-model="detalleFiltroTabla" class="form-control" placeholder="Filtrar dentro del cierre por partida, código, descripción o grupo...">
+    <select v-model="detalleGrupoSeleccionado" class="form-select cm-group-filter">
+      <option value="TODOS">Todos los grupos</option>
+      <option v-for="(grupo, index) in gruposPrincipales" :key="'cerrado-'+grupo" :value="grupo">{{ index + 1 }}. {{ grupo }}</option>
+    </select>
+    <label class="cm-stock-filter">
+      <input v-model="detalleSoloConStock" type="checkbox">
+      <span>Solo con stock</span>
+    </label>
+    <div class="cm-order-switch">
+      <button type="button" :class="{ active: detalleModoOrden === 'institucional' }" @click="detalleModoOrden = 'institucional'">Grupo / A-Z</button>
+      <button type="button" :class="{ active: detalleModoOrden === 'codigo' }" @click="detalleModoOrden = 'codigo'">Código LINAME</button>
+    </div>
+    <span>{{ detallesCierreFiltrados.length }} de {{ detalle.detalles.length }} ítems</span>
+  </div>
+
+  <p class="cm-note cm-export-note">El PDF se genera sobre la vista filtrada para evitar que un cierre de miles de ítems sobrecargue el servidor. Para el inventario completo, use EXCEL completo.</p>
+  <div class="cm-export-tools">
+    <button class="btn-csc-orange" :disabled="exportando" @click="exportarCierrePdf">
+      {{ exportando ? 'Generando...' : 'PDF de la vista' }}
+    </button>
+    <button class="cm-blue" :disabled="exportando" @click="exportarCierrePdfStock">
+      PDF solo con stock
+    </button>
+    <button class="cm-blue" :disabled="exportando" @click="exportarCierreExcelFiltrado">
+      EXCEL de la vista
+    </button>
+    <button class="cm-blue" :disabled="exportando" @click="exportarCierreExcelCompleto">
+      EXCEL completo ({{ detalle.detalles.length }})
+    </button>
+  </div>
+
   <div class="cm-full-table">
     <table>
       <colgroup><col class="col-partida"><col class="col-codigo"><col class="col-descripcion"><col class="col-forma"><col v-for="n in 17" :key="'closed-num-'+n" class="col-num"></colgroup>
@@ -311,36 +352,188 @@ const filasJerarquicas=computed(()=>{
   }
   return filas;
 });
+const detalleFiltroTabla=ref('');
+const detalleGrupoSeleccionado=ref('TODOS');
+const detalleSoloConStock=ref(false);
+const detalleModoOrden=ref('institucional');
+const exportando=ref(false);
+
+const detallesCierreFiltrados=computed(()=>{
+  let items=[...(detalle.value?.detalles||[])];
+  const q=normalizarTexto(detalleFiltroTabla.value||'');
+
+  if(q){
+    items=items.filter(d=>{
+      const c=clasificacionDe(d);
+      return [
+        d.partida_codigo,d.codigo,d.descripcion,d.forma_farmaceutica,
+        d.grupo_producto,c.grupo,c.subgrupo
+      ].some(v=>normalizarTexto(v).includes(q));
+    });
+  }
+
+  if(detalleGrupoSeleccionado.value!=='TODOS'){
+    items=items.filter(d=>clasificacionDe(d).grupo===detalleGrupoSeleccionado.value);
+  }
+
+  if(detalleSoloConStock.value){
+    items=items.filter(d=>Number(d.saldo_mes_cantidad||0)>0);
+  }
+
+  return items;
+});
+
 const filasDetalleJerarquicas=computed(()=>{
-  const items=[...(detalle.value?.detalles||[])];
+  const items=detallesCierreFiltrados.value;
   const filas=[]; let zebraIndex=0;
-  const comparar=(a,b)=>descripcionOrden(a).localeCompare(descripcionOrden(b),'es',{numeric:true,sensitivity:'base'});
+
+  const comparar=(a,b)=>{
+    if(detalleModoOrden.value==='codigo'){
+      return normalizarCodigo(a.codigo).localeCompare(
+        normalizarCodigo(b.codigo),'es',{numeric:true,sensitivity:'base'}
+      );
+    }
+    return descripcionOrden(a).localeCompare(
+      descripcionOrden(b),'es',{numeric:true,sensitivity:'base'}
+    );
+  };
+
   for(const grupo of gruposPrincipales){
     const delGrupo=items.filter(d=>clasificacionDe(d).grupo===grupo);
     if(!delGrupo.length) continue;
-    filas.push({tipo:'grupo',nombre:`${gruposPrincipales.indexOf(grupo)+1}. ${grupo}`,key:`dg-${grupo}`});
+
+    filas.push({
+      tipo:'grupo',
+      nombre:`${gruposPrincipales.indexOf(grupo)+1}. ${grupo}`,
+      key:`dg-${grupo}`
+    });
+
     if(grupo==='MATERIAL DE LABORATORIO Y REACTIVOS'){
       for(const subgrupo of subgruposLaboratorio){
-        const lista=delGrupo.filter(d=>clasificacionDe(d).subgrupo===subgrupo).sort(comparar);
+        const lista=delGrupo
+          .filter(d=>clasificacionDe(d).subgrupo===subgrupo)
+          .sort(comparar);
+
         if(!lista.length) continue;
-        filas.push({tipo:'subgrupo',nombre:`10.${subgruposLaboratorio.indexOf(subgrupo)+1}. ${subgrupo}`,key:`ds-${subgrupo}`});
-        lista.forEach((item,i)=>{filas.push({tipo:'item',item,key:`di-${item.id||item.medicamento_id}-${subgrupo}-${i}`,zebra:zebraIndex%2===1});zebraIndex++;});
+
+        filas.push({
+          tipo:'subgrupo',
+          nombre:`10.${subgruposLaboratorio.indexOf(subgrupo)+1}. ${subgrupo}`,
+          key:`ds-${subgrupo}`
+        });
+
+        lista.forEach((item,i)=>{
+          filas.push({
+            tipo:'item',
+            item,
+            key:`di-${item.id||item.medicamento_id}-${subgrupo}-${i}`,
+            zebra:zebraIndex%2===1
+          });
+          zebraIndex++;
+        });
       }
-      delGrupo.filter(d=>!clasificacionDe(d).subgrupo).sort(comparar).forEach((item,i)=>{filas.push({tipo:'item',item,key:`di-${item.id||item.medicamento_id}-sin-${i}`,zebra:zebraIndex%2===1});zebraIndex++;});
+
+      delGrupo
+        .filter(d=>!clasificacionDe(d).subgrupo)
+        .sort(comparar)
+        .forEach((item,i)=>{
+          filas.push({
+            tipo:'item',
+            item,
+            key:`di-${item.id||item.medicamento_id}-sin-${i}`,
+            zebra:zebraIndex%2===1
+          });
+          zebraIndex++;
+        });
     }else{
-      delGrupo.sort(comparar).forEach((item,i)=>{filas.push({tipo:'item',item,key:`di-${item.id||item.medicamento_id}-${grupo}-${i}`,zebra:zebraIndex%2===1});zebraIndex++;});
+      delGrupo.sort(comparar).forEach((item,i)=>{
+        filas.push({
+          tipo:'item',
+          item,
+          key:`di-${item.id||item.medicamento_id}-${grupo}-${i}`,
+          zebra:zebraIndex%2===1
+        });
+        zebraIndex++;
+      });
     }
   }
-  // No se pierde ningún ítem aunque su grupo aún no esté clasificado.
-  const incluidos=new Set(items.map(d=>d.id||d.medicamento_id));
-  const visibles=new Set(filas.filter(f=>f.tipo==='item').map(f=>f.item.id||f.item.medicamento_id));
-  const restantes=items.filter(d=>!visibles.has(d.id||d.medicamento_id)).sort(comparar);
+
+  // Los registros sin clasificación no desaparecen.
+  const visibles=new Set(
+    filas.filter(f=>f.tipo==='item').map(f=>f.item.id||f.item.medicamento_id)
+  );
+  const restantes=items
+    .filter(d=>!visibles.has(d.id||d.medicamento_id))
+    .sort(comparar);
+
   if(restantes.length){
-    filas.push({tipo:'grupo',nombre:'OTROS MATERIALES Y SUMINISTROS / SIN CLASIFICACIÓN',key:'dg-restantes'});
-    restantes.forEach((item,i)=>{filas.push({tipo:'item',item,key:`di-rest-${item.id||item.medicamento_id}-${i}`,zebra:zebraIndex%2===1});zebraIndex++;});
+    filas.push({
+      tipo:'grupo',
+      nombre:'OTROS MATERIALES Y SUMINISTROS / SIN CLASIFICACIÓN',
+      key:'dg-restantes'
+    });
+
+    restantes.forEach((item,i)=>{
+      filas.push({
+        tipo:'item',
+        item,
+        key:`di-rest-${item.id||item.medicamento_id}-${i}`,
+        zebra:zebraIndex%2===1
+      });
+      zebraIndex++;
+    });
   }
+
   return filas;
 });
+
+function idsDetalleActual(){
+  return filasDetalleJerarquicas.value
+    .filter(f=>f.tipo==='item')
+    .map(f=>f.item.id)
+    .filter(Boolean);
+}
+
+async function exportarCierrePdf(){
+  if(!detalle.value) return;
+  const ids=idsDetalleActual();
+  if(!ids.length){
+    error.value='No hay ítems que coincidan con los filtros seleccionados.';
+    return;
+  }
+  await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/pdf`,{ids});
+}
+
+async function exportarCierrePdfStock(){
+  if(!detalle.value) return;
+  const ids=(detalle.value.detalles||[])
+    .filter(d=>Number(d.saldo_mes_cantidad||0)>0)
+    .map(d=>d.id)
+    .filter(Boolean);
+
+  if(!ids.length){
+    error.value='No hay productos con stock en este cierre.';
+    return;
+  }
+
+  await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/pdf`,{ids});
+}
+
+async function exportarCierreExcelFiltrado(){
+  if(!detalle.value) return;
+  const ids=idsDetalleActual();
+  if(!ids.length){
+    error.value='No hay ítems que coincidan con los filtros seleccionados.';
+    return;
+  }
+  await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/excel`,{ids});
+}
+
+async function exportarCierreExcelCompleto(){
+  if(!detalle.value) return;
+  await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/excel`);
+}
+
 function nombreProducto(p){
   const nombre=String(p?.nombre||'').trim();
   const concentracion=String(p?.concentracion||'').trim();
@@ -396,10 +589,21 @@ watch([periodo,almacen],()=>{if(productoDetalle.value) limpiarProducto();});
 async function cargar(){const {data}=await axios.get('/api/cierres-mensuales');cierres.value=data;}
 async function previsualizar(){error.value='';preview.value=null;filtroTabla.value='';grupoSeleccionado.value='TODOS';soloConStock.value=false;modoOrden.value='institucional';cargando.value=true;try{const {data}=await axios.get('/api/cierres-mensuales/preview',{params:{periodo:periodo.value,almacen:almacen.value}});preview.value=data;}catch(e){error.value=e.response?.data?.message||'No se pudo calcular el cierre.';}finally{cargando.value=false;}}
 async function cerrarMes(){if(!confirm(`¿Confirmar el cierre de ${etiquetaMes(periodo.value+'-01')}? El resultado quedará guardado como histórico.`))return;guardando.value=true;error.value='';try{await axios.post('/api/cierres-mensuales',{periodo:periodo.value,almacen:almacen.value,observacion:observacion.value});preview.value=null;observacion.value='';await cargar();alert('Cierre mensual registrado correctamente.');}catch(e){error.value=e.response?.data?.message||'No se pudo registrar el cierre.';}finally{guardando.value=false;}}
-async function ver(c){const {data}=await axios.get(`/api/cierres-mensuales/${c.id}`);detalle.value=data;}
-async function download(url){
+async function ver(c){
+  error.value='';
+  detalleFiltroTabla.value='';
+  detalleGrupoSeleccionado.value='TODOS';
+  detalleSoloConStock.value=false;
+  detalleModoOrden.value='institucional';
+  const {data}=await axios.get(`/api/cierres-mensuales/${c.id}`);
+  detalle.value=data;
+}
+
+async function download(url,params={}){
+  exportando.value=true;
+  error.value='';
   try{
-    const r=await axios.get(url,{responseType:'blob',timeout:360000});
+    const r=await axios.get(url,{responseType:'blob',timeout:360000,params});
     const cd=r.headers['content-disposition']||'';
     const m=cd.match(/filename="?([^";]+)"?/);
     const a=document.createElement('a');
@@ -408,7 +612,20 @@ async function download(url){
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   }catch(e){
-    error.value='No se pudo generar el archivo. Si el PDF contiene miles de ítems, vuelva a intentarlo y revise el registro de Laravel.';
+    const data=e.response?.data;
+    if(data instanceof Blob){
+      try{
+        const text=await data.text();
+        const json=JSON.parse(text);
+        error.value=json.message||'No se pudo generar el archivo.';
+      }catch{
+        error.value='No se pudo generar el archivo.';
+      }
+    }else{
+      error.value=e.response?.data?.message||'No se pudo generar el archivo.';
+    }
+  }finally{
+    exportando.value=false;
   }
 }
 onMounted(cargar);
@@ -417,7 +634,7 @@ onMounted(cargar);
 .cm-page{width:100%;max-width:none;margin:16px 0}.cm-hero{background:#0b3d62;color:#fff;border-radius:14px 14px 0 0;padding:20px}.cm-hero h2{margin:0;font-size:1.3rem;font-weight:700}.cm-hero p{margin:5px 0 0;color:#dce7ef}.cm-card{background:#fff;border:1px solid #dbe3ea;border-radius:12px;margin-top:16px;padding:18px;box-shadow:0 4px 15px rgba(11,61,98,.06)}.cm-title{font-weight:700;font-size:1.1rem;color:#0b3d62;border-bottom:2px solid #e85d04;padding-bottom:9px;margin-bottom:14px}.cm-controls{display:grid;grid-template-columns:1fr 1.5fr auto;gap:14px;align-items:end}.cm-controls label{font-weight:600;color:#243447;margin-bottom:5px;display:block}.cm-control-action{padding-top:27px}.cm-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.cm-stats>div{border-left:3px solid #0b3d62;background:#f4f7fa;padding:11px;border-radius:7px}.cm-stats span{display:block;color:#667788;font-size:.78rem}.cm-stats strong{color:#0b3d62;font-size:1rem}.cm-summary,.cm-detail-table{overflow:auto;max-height:500px;margin-top:15px}.cm-summary table,.cm-detail-table table{width:100%;border-collapse:collapse;font-size:.88rem}.cm-summary th,.cm-detail-table th{background:#0b3d62;color:#fff}.cm-summary th,.cm-summary td,.cm-detail-table th,.cm-detail-table td{padding:8px;border:1px solid #dbe3ea;text-align:left}.cm-final{display:flex;gap:12px;align-items:center;margin-top:14px}.cm-final textarea{min-height:44px}.cm-row{display:flex;justify-content:space-between;gap:15px;align-items:center;padding:11px 0;border-bottom:1px solid #e5ebf0}.cm-row span{display:block;color:#667788;font-size:.83rem}.cm-blue{background:#fff;color:#0b3d62;border:1px solid #0b3d62;border-radius:7px;padding:7px 12px;margin-left:6px}.cm-row .btn-csc-orange{margin-left:6px}.cm-empty,.cm-note{color:#667788}.btn-csc-orange{border-radius:7px;padding:8px 14px}.btn-csc-orange:disabled{opacity:.65}@media(max-width:900px){.cm-controls,.cm-stats{grid-template-columns:1fr}.cm-control-action{padding-top:0}.cm-final,.cm-row{flex-direction:column;align-items:stretch}}
 
 .cm-all-items{margin-top:18px;padding-top:4px;border-top:1px solid #e3e9ee}
-.cm-table-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.cm-table-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}.cm-export-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}.cm-export-tools button{margin:0}.cm-closed-tools{margin-top:8px}.cm-closed-tools>input{min-width:320px;flex:1 1 320px}
 .cm-table-tools input{width:min(540px,100%)}
 .cm-table-tools span{color:#667788;font-size:.85rem;white-space:nowrap}
 .cm-group-filter{width:auto;min-width:245px}

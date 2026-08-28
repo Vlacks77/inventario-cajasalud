@@ -78,13 +78,55 @@ class CierreMensualController extends Controller
         ]);
     }
 
-    public function pdf(CierreMensual $cierreMensual) {
-        // Un cierre puede contener miles de ítems. Se aumenta el límite de
-        // ejecución para que DomPDF pueda construir el documento completo.
+    /**
+     * Genera un PDF del cierre histórico respetando los filtros enviados
+     * desde la vista. Por seguridad de rendimiento, el PDF no permite
+     * descargar miles de filas sin filtrar: para el cierre completo se usa
+     * Excel, o se puede activar "Solo con stock".
+     */
+    public function pdf(Request $request, CierreMensual $cierreMensual) {
         @set_time_limit(300);
 
+        $data = $request->validate([
+            'ids' => ['nullable','array','max:4493'],
+            'ids.*' => ['integer'],
+            'stock_only' => ['nullable','boolean'],
+        ]);
+
+        $ids = $data['ids'] ?? null;
+        $stockOnly = (bool)($data['stock_only'] ?? false);
+
+        // Un PDF sin selección explícita puede contener miles de filas y
+        // provocar que DomPDF consuma demasiada memoria. Obligar a usar
+        // filtros para PDF hace que Excel quede como formato de respaldo
+        // para el inventario completo.
+        if ($ids === null && !$stockOnly) {
+            return response()->json([
+                'message' => 'Para generar PDF seleccione un filtro o active "Solo con stock". Para el inventario completo use EXCEL.'
+            ], 422);
+        }
+
+        $detalles = $cierreMensual->detalles()
+            ->when($ids !== null, fn($q) => $q->whereIn('id', $ids))
+            ->when($stockOnly, fn($q) => $q->where('saldo_mes_cantidad','>',0))
+            ->orderBy('codigo')
+            ->orderBy('descripcion')
+            ->get();
+
+        // Cuando la vista envía IDs, conserva exactamente el orden que el
+        // usuario estaba viendo después de aplicar sus filtros.
+        if ($ids !== null) {
+            $posiciones = array_flip(array_map('intval', $ids));
+            $detalles = $detalles
+                ->sortBy(fn($d) => $posiciones[(int)$d->id] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        if ($detalles->isEmpty()) {
+            return response()->json(['message'=>'No hay ítems que coincidan con los filtros seleccionados.'],422);
+        }
+
         $cierreMensual->load('usuario');
-        $detalles=$cierreMensual->detalles()->orderBy('codigo')->orderBy('descripcion')->get();
         $resumen=$this->resumenGrupos($detalles->all());
 
         $pdf=Pdf::setOptions([
@@ -95,12 +137,53 @@ class CierreMensualController extends Controller
         ])->loadView('pdf.cierre-mensual',compact('cierreMensual','detalles','resumen'))
           ->setPaper('a3','landscape');
 
-        return $pdf->download('cierre-mensual-'.$cierreMensual->periodo->format('Y-m').'.pdf');
+        $sufijo = $stockOnly ? '-solo-stock' : '-filtrado';
+        return $pdf->download('cierre-mensual-'.$cierreMensual->periodo->format('Y-m').$sufijo.'.pdf');
     }
 
-    public function excel(CierreMensual $cierreMensual) {
-        $detalles=$cierreMensual->detalles()->orderBy('partida_codigo')->orderBy('descripcion')->get();$resumen=$this->resumenGrupos($detalles->all());
-        return response(view('excel.cierre-mensual',compact('cierreMensual','detalles','resumen'))->render(),200,['Content-Type'=>'application/vnd.ms-excel; charset=UTF-8','Content-Disposition'=>'attachment; filename="cierre-mensual-'.$cierreMensual->periodo->format('Y-m').'.xls"']);
+    /**
+     * Exporta el cierre completo o la selección actual a Excel.
+     * Excel se mantiene como formato recomendado para los 4493 ítems.
+     */
+    public function excel(Request $request, CierreMensual $cierreMensual) {
+        $data = $request->validate([
+            'ids' => ['nullable','array','max:4493'],
+            'ids.*' => ['integer'],
+            'stock_only' => ['nullable','boolean'],
+        ]);
+
+        $ids = $data['ids'] ?? null;
+
+        $detalles=$cierreMensual->detalles()
+            ->when($ids !== null, fn($q) => $q->whereIn('id', $ids))
+            ->when((bool)($data['stock_only'] ?? false), fn($q) => $q->where('saldo_mes_cantidad','>',0))
+            ->orderBy('partida_codigo')
+            ->orderBy('descripcion')
+            ->get();
+
+        if ($ids !== null) {
+            $posiciones = array_flip(array_map('intval', $ids));
+            $detalles = $detalles
+                ->sortBy(fn($d) => $posiciones[(int)$d->id] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        if ($detalles->isEmpty()) {
+            return response()->json(['message'=>'No hay ítems que coincidan con los filtros seleccionados.'],422);
+        }
+
+        $cierreMensual->load('usuario');
+        $resumen=$this->resumenGrupos($detalles->all());
+        $sufijo=$ids !== null ? '-filtrado' : '-completo';
+
+        return response(
+            view('excel.cierre-mensual',compact('cierreMensual','detalles','resumen'))->render(),
+            200,
+            [
+                'Content-Type'=>'application/vnd.ms-excel; charset=UTF-8',
+                'Content-Disposition'=>'attachment; filename="cierre-mensual-'.$cierreMensual->periodo->format('Y-m').$sufijo.'.xls"'
+            ]
+        );
     }
 
     /**
