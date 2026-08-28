@@ -1,0 +1,1 @@
+<table border="1"><tr><th>LINAME</th><th>Producto</th><th>Partida</th><th>Grupo</th><th>Stock</th><th>Valor actual (Bs)</th></tr>@foreach($productos as $p)<tr><td>{{ $p->codigo }}</td><td>{{ $p->nombre }}</td><td>{{ $p->partidaPresupuestaria?->codigo }}</td><td>{{ $p->grupo_producto }}</td><td>{{ $p->stock_total }}</td><td>{{ $p->valor_total }}</td></tr>@endforeach</table>

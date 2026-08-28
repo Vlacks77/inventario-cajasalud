@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EstablecimientoController;
 use App\Http\Controllers\Api\MedicamentoController;
 use App\Http\Controllers\Api\LoteController;
+use App\Http\Controllers\Api\ReporteController;
 
 // Autenticación
 Route::post('/login', [AuthController::class, 'login']);
@@ -48,3 +49,23 @@ Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
 
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/salidas', [SalidaController::class, 'store']);
+
+// Reportes y regeneración de documentos
+Route::middleware('auth:sanctum')->get('/reportes/ingresos', [ReporteController::class, 'ingresos']);
+Route::middleware('auth:sanctum')->get('/reportes/ingresos/{ingreso}/excel', [ReporteController::class, 'ingresoExcel']);
+Route::middleware('auth:sanctum')->get('/reportes/salidas', [ReporteController::class, 'salidas']);
+Route::middleware('auth:sanctum')->get('/reportes/salidas/{salida}/pdf', [ReporteController::class, 'salidaPdf']);
+Route::middleware('auth:sanctum')->get('/reportes/salidas/{salida}/excel', [ReporteController::class, 'salidaExcel']);
+Route::middleware('auth:sanctum')->get('/reportes/inventario/pdf', [ReporteController::class, 'inventario']);
+Route::middleware('auth:sanctum')->get('/reportes/inventario/excel', [ReporteController::class, 'inventarioExcel']);
+Route::middleware('auth:sanctum')->get('/reportes/kardex/pdf', [ReporteController::class, 'kardex']);
+
+// Cierre mensual y reporte institucional de inventario
+use App\Http\Controllers\Api\CierreMensualController;
+Route::middleware('auth:sanctum')->get('/cierres-mensuales', [CierreMensualController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/cierres-mensuales/preview', [CierreMensualController::class, 'preview']);
+Route::middleware('auth:sanctum')->get('/cierres-mensuales/productos/{medicamento}/preview', [CierreMensualController::class, 'productoPreview']);
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])->post('/cierres-mensuales', [CierreMensualController::class, 'store']);
+Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}', [CierreMensualController::class, 'show']);
+Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}/pdf', [CierreMensualController::class, 'pdf']);
+Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}/excel', [CierreMensualController::class, 'excel']);

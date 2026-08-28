@@ -25,6 +25,18 @@ class Salida extends Model
     ];
 
     /**
+     * Conversión de fechas para que Laravel las maneje como Carbon.
+     * Esto permite usar format() de forma segura en Kardex, reportes
+     * y en la validación detallada del cierre mensual.
+     */
+    protected function casts(): array
+    {
+        return [
+            'fecha_salida' => 'date',
+        ];
+    }
+
+    /**
      * Establecimiento al que se envía la salida.
      */
     public function establecimiento(): BelongsTo

@@ -38,7 +38,7 @@
         </div>
       </header>
 
-      <main class="csc-main">
+      <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' }">
         <nav class="csc-nav">
           <button
             v-if="puedeModificar"
@@ -73,6 +73,14 @@
           >
             Kardex / movimientos
           </button>
+
+          <button class="csc-nav-link" :class="{ active: vistaActual === 'reportes' }" @click="vistaActual = 'reportes'">
+            Reportes
+          </button>
+
+          <button class="csc-nav-link" :class="{ active: vistaActual === 'cierre-mensual' }" @click="vistaActual = 'cierre-mensual'">
+            Inventario mensual
+          </button>
         </nav>
 
         <RegistrarIngreso
@@ -82,6 +90,8 @@
         <RegistrarSalida v-show="vistaActual === 'salida' && puedeModificar" />
         <Inventario v-show="vistaActual === 'inventario'" />
         <Kardex v-show="vistaActual === 'kardex'" />
+        <Reportes v-show="vistaActual === 'reportes'" />
+        <CierreMensual v-show="vistaActual === 'cierre-mensual'" />
 
         <footer class="csc-system-credits" aria-label="Créditos del sistema">
           <a
@@ -113,6 +123,8 @@ import Inventario from './components/Inventario.vue';
 import Kardex from './components/Kardex.vue';
 import RegistrarSalida from './components/RegistrarSalida.vue';
 import RegistrarIngreso from './components/RegistrarIngreso.vue';
+import Reportes from './components/Reportes.vue';
+import CierreMensual from './components/CierreMensual.vue';
 
 const sesionIniciada = ref(false);
 const verificandoSesion = ref(true);
@@ -336,10 +348,16 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
+/* En Inventario mensual se aprovecha prácticamente todo el ancho de la pantalla. */
 .csc-main {
   width: min(1500px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 40px;
+}
+
+.csc-main.csc-main-wide {
+  width: calc(100% - 24px);
+  max-width: none;
 }
 
 .csc-nav {
