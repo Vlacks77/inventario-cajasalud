@@ -126,6 +126,15 @@ class CierreMensualController extends Controller
             return response()->json(['message'=>'No hay ítems que coincidan con los filtros seleccionados.'],422);
         }
 
+        // DomPDF puede consumir demasiada memoria con miles de filas.
+        // El PDF queda destinado a vistas filtradas; Excel es el formato
+        // recomendado para el cierre completo.
+        if ($detalles->count() > 1000) {
+            return response()->json([
+                'message' => 'La selección contiene '.$detalles->count().' ítems. Para PDF filtre hasta 1000 ítems; para el inventario completo utilice EXCEL completo.'
+            ], 422);
+        }
+
         $cierreMensual->load('usuario');
         $resumen=$this->resumenGrupos($detalles->all());
 

@@ -181,10 +181,10 @@
     <span>{{ detallesCierreFiltrados.length }} de {{ detalle.detalles.length }} ítems</span>
   </div>
 
-  <p class="cm-note cm-export-note">El PDF se genera sobre la vista filtrada para evitar que un cierre de miles de ítems sobrecargue el servidor. Para el inventario completo, use EXCEL completo.</p>
+  <p class="cm-note cm-export-note">El PDF está pensado para una vista filtrada de hasta 1000 ítems. Para el inventario completo de miles de productos, utilice EXCEL completo.</p>
   <div class="cm-export-tools">
     <button class="btn-csc-orange" :disabled="exportando" @click="exportarCierrePdf">
-      {{ exportando ? 'Generando...' : 'PDF de la vista' }}
+      {{ exportando ? 'Generando...' : 'PDF de la vista filtrada' }}
     </button>
     <button class="cm-blue" :disabled="exportando" @click="exportarCierrePdfStock">
       PDF solo con stock
@@ -499,6 +499,10 @@ async function exportarCierrePdf(){
   const ids=idsDetalleActual();
   if(!ids.length){
     error.value='No hay ítems que coincidan con los filtros seleccionados.';
+    return;
+  }
+  if(ids.length > 1000){
+    error.value=`La vista actual contiene ${ids.length} ítems. Para PDF filtre hasta 1000 ítems; para el inventario completo use EXCEL completo.`;
     return;
   }
   await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/pdf`,{ids});
