@@ -10,9 +10,17 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ClasificadorInventarioService;
 
 class CierreMensualController extends Controller
 {
+    private ClasificadorInventarioService $clasificador;
+
+    public function __construct(ClasificadorInventarioService $clasificador)
+    {
+        $this->clasificador = $clasificador;
+    }
+
     public function index() {
         return CierreMensual::with('usuario:id,name')->latest('periodo')->get()->map(fn($c)=>[
             'id'=>$c->id,'periodo'=>$c->periodo->format('Y-m-d'),'fecha_desde'=>$c->fecha_desde->format('Y-m-d'),'fecha_hasta'=>$c->fecha_hasta->format('Y-m-d'),
@@ -234,7 +242,7 @@ class CierreMensualController extends Controller
                     ->betweenIncluded($desde, $hasta);
             })
             ->map(function ($lote) {
-                $tipo = $lote->ingreso->tipo_ingreso === 'transferencia'
+                $tipo = in_array($lote->ingreso->tipo_ingreso, ['transferencia', 'transferencia_regional'], true)
                     ? 'Transferencia entre regionales'
                     : 'Compra local / otro ingreso';
 
@@ -323,7 +331,7 @@ class CierreMensualController extends Controller
                 foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if($f && Carbon::parse($f)->lt($desde)){$q=(float)$s->cantidad;$precio=(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$saq-=$q;$sai-=$q*$precio;}}
             }
             $trq=$tri=$clq=$cli=0;
-            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;if($l->ingreso->tipo_ingreso==='transferencia'){$trq+=$q;$tri+=$imp;}else{$clq+=$q;$cli+=$imp;}}
+            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;if(in_array($l->ingreso->tipo_ingreso, ['transferencia', 'transferencia_regional'], true)){$trq+=$q;$tri+=$imp;}else{$clq+=$q;$cli+=$imp;}}
             $eq=$ei=0;
             foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$s->cantidad;$precio=(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$eq+=$q;$ei+=$q*$precio;}
             $tiq=$trq+$clq;$tii=$tri+$cli;$smq=$saq+$tiq-$eq;$smi=$sai+$tii-$ei;
@@ -365,7 +373,47 @@ class CierreMensualController extends Controller
             : trim($nombre . ' ' . $concentracion);
     }
 
-    private function resumenGrupos(iterable $detalles): array {
-        $out=[];foreach($detalles as $d){$a=is_array($d)?$d:$d->toArray();$g=$a['grupo_producto'] ?: 'SIN GRUPO';if(!isset($out[$g]))$out[$g]=['grupo'=>$g,'saldo_anterior_importe'=>0,'transferencia_importe'=>0,'compra_local_importe'=>0,'total_ingresos_importe'=>0,'egreso_importe'=>0,'saldo_mes_importe'=>0];foreach(array_keys($out[$g]) as $k)if(str_ends_with($k,'importe'))$out[$g][$k]+=(float)$a[$k];}return array_values($out);
+    private function resumenGrupos(iterable $detalles): array
+    {
+        $out = [];
+
+        foreach ($detalles as $d) {
+            $a = is_array($d) ? $d : $d->toArray();
+            $clasificacion = $this->clasificador->clasificar(
+                $a['codigo'] ?? null,
+                $a['grupo_producto'] ?? null
+            );
+
+            $grupo = $clasificacion['grupo'] ?? 'SIN CLASIFICACIÓN';
+
+            if (!isset($out[$grupo])) {
+                $out[$grupo] = [
+                    'grupo' => $grupo,
+                    'saldo_anterior_importe' => 0,
+                    'transferencia_importe' => 0,
+                    'compra_local_importe' => 0,
+                    'total_ingresos_importe' => 0,
+                    'egreso_importe' => 0,
+                    'saldo_mes_importe' => 0,
+                ];
+            }
+
+            foreach (array_keys($out[$grupo]) as $k) {
+                if (str_ends_with($k, 'importe')) {
+                    $out[$grupo][$k] += (float) ($a[$k] ?? 0);
+                }
+            }
+        }
+
+        // Mantiene el orden institucional de los 20 grupos y deja los
+        // productos sin clasificación al final, sin ocultarlos.
+        $orden = array_flip($this->clasificador->grupos());
+        uksort($out, static function ($a, $b) use ($orden) {
+            $pa = $orden[$a] ?? PHP_INT_MAX;
+            $pb = $orden[$b] ?? PHP_INT_MAX;
+            return $pa <=> $pb ?: strcasecmp($a, $b);
+        });
+
+        return array_values($out);
     }
 }

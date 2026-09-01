@@ -134,6 +134,7 @@ const autenticar = async () => {
       nombre: datos.user.name,
       username: datos.user.username,
       rol: datos.user.role,
+      regional: datos.user.regional,
       id: datos.user.id,
     });
 

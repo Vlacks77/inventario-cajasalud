@@ -14,6 +14,19 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class IngresoController extends Controller
 {
+    /**
+     * Devuelve el siguiente número correlativo que se mostrará en el formulario.
+     * El número definitivo se confirma al crear el registro y se basa en el ID generado.
+     */
+    public function siguienteNumero()
+    {
+        $siguiente = ((int) Ingreso::max('id')) + 1;
+
+        return response()->json([
+            'numero_nota' => 'N.º ' . str_pad((string) $siguiente, 6, '0', STR_PAD_LEFT),
+        ]);
+    }
+
     /** Registra una recepción completa: una cabecera y todos sus productos. */
     public function store(StoreIngresoRequest $request)
     {
@@ -32,10 +45,10 @@ class IngresoController extends Controller
                 'fecha_ingreso' => $datos['ingreso']['fecha_ingreso'],
                 'numero_remision' => $datos['ingreso']['numero_remision'] ?? null,
                 'numero_factura' => $datos['ingreso']['numero_factura'] ?? null,
+                'numero_orden_compra' => $datos['ingreso']['numero_orden_compra'] ?? null,
                 'tipo_ingreso' => $datos['ingreso']['tipo_ingreso'],
                 'observacion' => $datos['ingreso']['observacion'] ?? null,
                 'recibido_por' => $datos['ingreso']['recibido_por'],
-                'autorizado_por' => $datos['ingreso']['autorizado_por'],
             ]);
             $ingreso->update(['numero_nota' => 'N.º '.str_pad((string) $ingreso->id, 6, '0', STR_PAD_LEFT)]);
 
@@ -64,6 +77,7 @@ class IngresoController extends Controller
             'message' => "{$ingreso->numero_nota} registrada con ".count($datos['items']).' ítem(s).',
             'ingreso_id' => $ingreso->id,
             'pdf_id' => $ingreso->id,
+            'numero_nota' => $ingreso->numero_nota,
         ], 201);
     }
 

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\EstablecimientoController;
 use App\Http\Controllers\Api\MedicamentoController;
 use App\Http\Controllers\Api\LoteController;
 use App\Http\Controllers\Api\ReporteController;
+use App\Http\Controllers\Api\ProveedorController;
 
 // Autenticación
 Route::post('/login', [AuthController::class, 'login']);
@@ -37,7 +38,15 @@ Route::middleware('auth:sanctum')
 Route::middleware('auth:sanctum')
     ->get('/medicamentos/{medicamento}/lotes', [LoteController::class, 'index']);
 
+// Proveedores
+Route::middleware('auth:sanctum')
+    ->get('/proveedores', [ProveedorController::class, 'index']);
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->post('/proveedores', [ProveedorController::class, 'store']);
+
 // Ingresos
+Route::middleware('auth:sanctum')
+    ->get('/ingresos/siguiente-numero', [IngresoController::class, 'siguienteNumero']);
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/ingresos', [IngresoController::class, 'store']);
 Route::middleware('auth:sanctum')

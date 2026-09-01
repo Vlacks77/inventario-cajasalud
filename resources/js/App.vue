@@ -28,15 +28,70 @@
           </div>
 
           <div class="csc-header-right">
-            <div class="text-end text-white me-2">
-              <small>{{ usuarioActual.nombre }} ({{ usuarioActual.rol }})</small>
-              <br>
-              <button class="btn btn-light btn-sm mt-1 csc-logout" @click="cerrarSesion">Salir</button>
+            <div class="text-end text-white me-2 csc-user-block">
+              <div class="csc-user-name">{{ usuarioActual.nombre }} <span class="csc-user-role">({{ usuarioActual.rol }})</span></div>
+              <div class="csc-regional-line">
+                <img
+                  v-if="regionalActual.bandera"
+                  :src="`img/banderas/${regionalActual.bandera}`"
+                  :alt="`Bandera de ${usuarioActual.regional}`"
+                  class="csc-regional-flag"
+                >
+                <span>Regional: {{ usuarioActual.regional || 'No asignada' }}</span>
+              </div>
+              <div class="d-flex justify-content-end gap-2 mt-1">
+                <button class="btn btn-light btn-sm csc-account-btn" @click="abrirCambioPassword">Cambiar contraseña</button>
+                <button class="btn btn-light btn-sm csc-logout" @click="cerrarSesion">Salir</button>
+              </div>
             </div>
             <img src="img/logo-csc-icon.png" alt="Caja de Salud de Caminos y R.A." class="csc-header-icon">
           </div>
         </div>
       </header>
+
+      <div
+        v-if="mostrarCambioPassword"
+        class="csc-modal-backdrop"
+        @click.self="cerrarCambioPassword"
+      >
+        <div class="csc-password-modal" role="dialog" aria-modal="true" aria-labelledby="cambiar-password-title">
+          <div class="csc-password-modal-header">
+            <div>
+              <h2 id="cambiar-password-title">Cambiar contraseña</h2>
+              <small>{{ usuarioActual.nombre }}</small>
+            </div>
+            <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" @click="cerrarCambioPassword"></button>
+          </div>
+
+          <form class="csc-password-modal-body" @submit.prevent="cambiarPassword">
+            <div v-if="passwordMensaje" class="alert alert-success py-2 small">{{ passwordMensaje }}</div>
+            <div v-if="passwordError" class="alert alert-danger py-2 small">{{ passwordError }}</div>
+
+            <div class="mb-3">
+              <label class="form-label">Contraseña actual</label>
+              <input v-model="passwordForm.current_password" type="password" class="form-control" autocomplete="current-password" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Nueva contraseña</label>
+              <input v-model="passwordForm.password" type="password" class="form-control" minlength="8" autocomplete="new-password" required>
+              <small class="text-muted">Mínimo 8 caracteres.</small>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Confirmar nueva contraseña</label>
+              <input v-model="passwordForm.password_confirmation" type="password" class="form-control" minlength="8" autocomplete="new-password" required>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-outline-secondary" @click="cerrarCambioPassword">Cancelar</button>
+              <button type="submit" class="btn btn-csc-orange" :disabled="cambiandoPassword">
+                {{ cambiandoPassword ? 'Actualizando…' : 'Actualizar contraseña' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' }">
         <nav class="csc-nav">
@@ -86,6 +141,7 @@
         <RegistrarIngreso
           v-show="vistaActual === 'ingreso' && puedeModificar"
           :recibido-por="usuarioActual.nombre"
+          :regional="usuarioActual.regional"
         />
         <RegistrarSalida v-show="vistaActual === 'salida' && puedeModificar" />
         <Inventario v-show="vistaActual === 'inventario'" />
@@ -125,10 +181,18 @@ import RegistrarSalida from './components/RegistrarSalida.vue';
 import RegistrarIngreso from './components/RegistrarIngreso.vue';
 import Reportes from './components/Reportes.vue';
 import CierreMensual from './components/CierreMensual.vue';
+import { obtenerRegional } from './data/regionales.js';
 
 const sesionIniciada = ref(false);
 const verificandoSesion = ref(true);
-const usuarioActual = ref({ nombre: '', rol: '' });
+const usuarioActual = ref({ nombre: '', rol: '', regional: 'La Paz' });
+const mostrarCambioPassword = ref(false);
+const cambiandoPassword = ref(false);
+const passwordMensaje = ref('');
+const passwordError = ref('');
+const passwordForm = ref({ current_password: '', password: '', password_confirmation: '' });
+
+const regionalActual = computed(() => obtenerRegional(usuarioActual.value.regional));
 const vistaActual = ref('ingreso');
 
 const puedeModificar = computed(() =>
@@ -139,7 +203,8 @@ const limpiarSesionLocal = () => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('usuario_actual');
   delete axios.defaults.headers.common.Authorization;
-  usuarioActual.value = { nombre: '', rol: '' };
+  usuarioActual.value = { nombre: '', rol: '', regional: 'La Paz' };
+  mostrarCambioPassword.value = false;
   sesionIniciada.value = false;
 };
 
@@ -167,6 +232,60 @@ const cerrarSesion = async () => {
   } finally {
     limpiarSesionLocal();
     verificandoSesion.value = false;
+  }
+};
+
+const abrirCambioPassword = () => {
+  passwordMensaje.value = '';
+  passwordError.value = '';
+  passwordForm.value = {
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+  };
+  mostrarCambioPassword.value = true;
+};
+
+const cerrarCambioPassword = () => {
+  if (cambiandoPassword.value) return;
+  mostrarCambioPassword.value = false;
+  passwordMensaje.value = '';
+  passwordError.value = '';
+};
+
+const cambiarPassword = async () => {
+  passwordMensaje.value = '';
+  passwordError.value = '';
+
+  if (passwordForm.value.password !== passwordForm.value.password_confirmation) {
+    passwordError.value = 'Las nuevas contraseñas no coinciden.';
+    return;
+  }
+
+  cambiandoPassword.value = true;
+
+  try {
+    const response = await axios.post('api/change-password', passwordForm.value);
+    passwordMensaje.value = response.data?.message || 'Contraseña actualizada correctamente.';
+    passwordForm.value = {
+      current_password: '',
+      password: '',
+      password_confirmation: '',
+    };
+
+    setTimeout(() => {
+      if (mostrarCambioPassword.value) {
+        mostrarCambioPassword.value = false;
+        passwordMensaje.value = '';
+      }
+    }, 1400);
+  } catch (error) {
+    passwordError.value =
+      error.response?.data?.message ||
+      error.response?.data?.errors?.password?.[0] ||
+      'No se pudo actualizar la contraseña.';
+  } finally {
+    cambiandoPassword.value = false;
   }
 };
 
@@ -333,6 +452,95 @@ body {
   white-space: nowrap;
 }
 
+.csc-user-block {
+  min-width: 255px;
+}
+
+.csc-user-name {
+  font-size: .84rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.csc-user-role {
+  font-weight: 500;
+  opacity: .92;
+}
+
+.csc-regional-line {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: .78rem;
+  line-height: 1;
+  color: rgba(255,255,255,.96);
+}
+
+.csc-regional-flag {
+  width: 28px;
+  height: 18px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+.csc-account-btn,
+.csc-logout {
+  font-size: .72rem;
+}
+
+.csc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(5, 24, 40, .55);
+}
+
+.csc-password-modal {
+  width: min(460px, 100%);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--csc-border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.24);
+}
+
+.csc-password-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: var(--csc-blue-dark);
+  color: #fff;
+}
+
+.csc-password-modal-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.csc-password-modal-header small {
+  opacity: .85;
+}
+
+.csc-password-modal-body {
+  padding: 20px;
+}
+
+.csc-password-modal-body .form-label {
+  color: var(--csc-blue-dark);
+  font-weight: 700;
+  font-size: .85rem;
+}
+
 .csc-logout {
   border: 0;
   font-weight: 600;
@@ -480,6 +688,21 @@ body {
   .csc-header-icon {
     width: 48px;
     height: 48px;
+  }
+
+  .csc-user-block {
+    min-width: 0;
+  }
+
+  .csc-user-name {
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .csc-regional-line {
+    font-size: .7rem;
   }
 
   .csc-header-right small {

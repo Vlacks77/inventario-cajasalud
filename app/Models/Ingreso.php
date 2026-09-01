@@ -16,6 +16,7 @@ class Ingreso extends Model
         'numero_nota',
         'numero_remision',
         'numero_factura',
+        'numero_orden_compra',
         'tipo_ingreso',
         'observacion',
         'recibido_por',

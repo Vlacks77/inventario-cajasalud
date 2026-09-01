@@ -5,7 +5,7 @@
 <table border="1">
 <tr><td><b>N.º nota</b></td><td>{{ $ingreso->numero_nota }}</td><td><b>Fecha</b></td><td>{{ $ingreso->fecha_ingreso?->format('d/m/Y') }}</td></tr>
 <tr><td><b>Almacén</b></td><td>{{ $ingreso->almacen }}</td><td><b>Procedencia</b></td><td>{{ $ingreso->proveedor?->nombre }}</td></tr>
-<tr><td><b>N.º remisión</b></td><td>{{ $ingreso->numero_remision ?: '—' }}</td><td><b>N.º factura</b></td><td>{{ $ingreso->numero_factura ?: '—' }}</td></tr>
+<tr><td><b>N.º remisión</b></td><td>{{ $ingreso->numero_remision ?: '—' }}</td><td><b>N.º factura</b></td><td>{{ $ingreso->numero_factura ?: '—' }}</td></tr><tr><td><b>N.º Orden de Compra</b></td><td colspan="3">{{ $ingreso->numero_orden_compra ?: '—' }}</td></tr>
 </table><br>
 <table border="1">
 <thead><tr><th>Partida</th><th>LINAME</th><th>Descripción / concentración</th><th>Forma / unidad</th><th>Lote</th><th>Vencimiento</th><th>Cantidad</th><th>P. unit. (Bs)</th><th>Importe (Bs)</th></tr></thead>
@@ -19,5 +19,5 @@
 <tfoot><tr><td colspan="8"><b>TOTAL (Bs)</b></td><td><b>{{ number_format($total,2,'.','') }}</b></td></tr></tfoot>
 </table><br>
 <p><b>Observaciones:</b> {{ $ingreso->observacion ?: 'Sin observaciones.' }}</p>
-<p><b>Recibido por:</b> {{ $ingreso->recibido_por }} &nbsp;&nbsp;&nbsp; <b>Autorizado por:</b> {{ $ingreso->autorizado_por }}</p>
+<p><b>Recibido por:</b> {{ $ingreso->recibido_por }}</p>
 </body></html>

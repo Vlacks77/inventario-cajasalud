@@ -38,6 +38,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'role' => $user->role,
+                'regional' => $user->regional,
             ],
         ]);
     }
@@ -56,6 +57,7 @@ class AuthController extends Controller
             'name' => $user->name,
             'username' => $user->username,
             'role' => $user->role,
+            'regional' => $user->regional,
         ]);
     }
 
@@ -70,4 +72,32 @@ class AuthController extends Controller
             'message' => 'Sesión cerrada correctamente.',
         ]);
     }
+
+    /**
+     * Permite al usuario autenticado cambiar su propia contraseña.
+     */
+    public function changePassword(Request $request)
+    {
+        $datos = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($datos['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'La contraseña actual no es correcta.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($datos['password']),
+        ]);
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente.',
+        ]);
+    }
+
 }

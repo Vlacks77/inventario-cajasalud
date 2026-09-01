@@ -524,13 +524,29 @@ async function exportarCierrePdfStock(){
 }
 
 async function exportarCierreExcelFiltrado(){
+
   if(!detalle.value) return;
+
   const ids=idsDetalleActual();
+
   if(!ids.length){
+
     error.value='No hay ítems que coincidan con los filtros seleccionados.';
+
     return;
+
   }
-  await download(`/api/cierres-mensuales/${detalle.value.cierre.id}/excel`,{ids});
+
+  if(ids.length > 1000){
+
+    error.value=`La vista actual contiene ${ids.length} ítems. Para un EXCEL corto, filtre hasta 1000 ítems; para el inventario completo use EXCEL COMPLETO.`;
+
+    return;
+
+  }
+
+  await download(`\/api\/cierres-mensuales\/${detalle.value.cierre.id}\/excel`,{ids});
+
 }
 
 async function exportarCierreExcelCompleto(){
