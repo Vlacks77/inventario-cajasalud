@@ -86,12 +86,21 @@ class IngresoController extends Controller
         $ingreso->load(['proveedor', 'lotes.medicamento.partidaPresupuestaria']);
         $total = $ingreso->lotes->sum('importe_total');
 
-        return Pdf::loadView('pdf.nota-ingreso', [
+        $pdf = Pdf::loadView('pdf.nota-ingreso', [
             'ingreso' => $ingreso,
             'total' => $total,
             'totalLiteral' => $this->montoEnLetras((float) $total),
-        ])->setPaper('letter', 'landscape')
-            ->download('nota-ingreso-'.str_replace(['N.º ', ' '], ['', '-'], $ingreso->numero_nota).'.pdf');
+        ])->setPaper('letter', 'portrait');
+
+        $contenido = $pdf->output();
+        $nombre = 'nota-ingreso-'.str_replace(['N.º ', ' '], ['', '-'], $ingreso->numero_nota).'.pdf';
+
+        return response($contenido, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
+            'Content-Length' => (string) strlen($contenido),
+            'Cache-Control' => 'private, max-age=0, must-revalidate',
+        ]);
     }
 
     private function montoEnLetras(float $monto): string

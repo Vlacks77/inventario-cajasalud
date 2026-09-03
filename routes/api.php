@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
 
 // Reportes y regeneración de documentos
 Route::middleware('auth:sanctum')->get('/reportes/ingresos', [ReporteController::class, 'ingresos']);
+Route::middleware('auth:sanctum')->get('/reportes/ingresos/{ingreso}/pdf', [ReporteController::class, 'ingresoPdf']);
 Route::middleware('auth:sanctum')->get('/reportes/ingresos/{ingreso}/excel', [ReporteController::class, 'ingresoExcel']);
 Route::middleware('auth:sanctum')->get('/reportes/salidas', [ReporteController::class, 'salidas']);
 Route::middleware('auth:sanctum')->get('/reportes/salidas/{salida}/pdf', [ReporteController::class, 'salidaPdf']);
