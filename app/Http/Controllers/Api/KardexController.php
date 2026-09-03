@@ -17,11 +17,15 @@ class KardexController extends Controller
     {
         $buscar = trim($request->query('buscar', ''));
         $procedencia = trim($request->query('procedencia', ''));
-        $tieneFiltros = $buscar !== '' || $procedencia !== ''
+        $tipo = strtoupper(trim($request->query('tipo', '')));
+        if (!in_array($tipo, ['', 'INGRESO', 'SALIDA'], true)) {
+            $tipo = '';
+        }
+        $tieneFiltros = $buscar !== '' || $procedencia !== '' || $tipo !== ''
             || $request->filled('fecha_desde') || $request->filled('fecha_hasta');
         $limite = $tieneFiltros ? 300 : 10;
 
-        $ingresos = Lote::with(['medicamento.partidaPresupuestaria', 'proveedor', 'ingreso.usuario'])
+        $ingresos = $tipo === 'SALIDA' ? collect() : Lote::with(['medicamento.partidaPresupuestaria', 'proveedor', 'ingreso.usuario'])
             ->whereNotNull('ingreso_id')
             ->when($buscar !== '', function ($query) use ($buscar) {
                 $query->whereHas('medicamento', function ($producto) use ($buscar) {
@@ -60,7 +64,7 @@ class KardexController extends Controller
                 ];
             });
 
-        $salidas = DetalleSalida::with(['salida.establecimiento', 'salida.usuario', 'lote.medicamento.partidaPresupuestaria'])
+        $salidas = $tipo === 'INGRESO' ? collect() : DetalleSalida::with(['salida.establecimiento', 'salida.usuario', 'lote.medicamento.partidaPresupuestaria'])
             ->whereHas('salida', fn ($q) => $q->where('estado', 'ACTIVA'))
             ->when($buscar !== '', function ($query) use ($buscar) {
                 $query->whereHas('lote.medicamento', function ($producto) use ($buscar) {

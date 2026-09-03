@@ -23,7 +23,7 @@ class IngresoController extends Controller
         $siguiente = ((int) Ingreso::max('id')) + 1;
 
         return response()->json([
-            'numero_nota' => 'N.º ' . str_pad((string) $siguiente, 6, '0', STR_PAD_LEFT),
+            'numero_nota' => 'N.º ' . $siguiente,
         ]);
     }
 
@@ -50,7 +50,7 @@ class IngresoController extends Controller
                 'observacion' => $datos['ingreso']['observacion'] ?? null,
                 'recibido_por' => $datos['ingreso']['recibido_por'],
             ]);
-            $ingreso->update(['numero_nota' => 'N.º '.str_pad((string) $ingreso->id, 6, '0', STR_PAD_LEFT)]);
+            $ingreso->update(['numero_nota' => 'N.º '.$ingreso->id]);
 
             foreach ($datos['items'] as $item) {
                 $producto = Medicamento::where('estado', true)->findOrFail($item['producto_id']);

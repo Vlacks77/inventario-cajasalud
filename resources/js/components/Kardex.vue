@@ -43,6 +43,14 @@
           </label>
 
           <label>
+            Tipo de movimiento
+            <select v-model="filtros.tipo" class="form-select">
+              <option value="">Ingresos + salidas</option>
+              <option value="INGRESO">Solo ingresos</option>
+              <option value="SALIDA">Solo salidas</option>
+            </select>
+          </label>
+          <label>
             Procedencia / destino
             <input v-model="filtros.procedencia" class="form-control" placeholder="Proveedor o destino">
           </label>
@@ -137,6 +145,7 @@ let temporizador = null;
 const filtros = reactive({
   buscar: '',
   procedencia: '',
+  tipo: '',
   fecha_desde: '',
   fecha_hasta: '',
 });
@@ -238,12 +247,12 @@ onBeforeUnmount(() => {
 .kardex-hero { background:#0b3d62; color:#fff; min-height:76px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; gap:18px; }
 .kardex-hero h2 { font-size:1.25rem; margin:0 0 3px; font-weight:700; } .kardex-hero p { margin:0; font-size:.9rem; color:rgba(255,255,255,.8); }
 .movement-badge { border:1px solid rgba(255,255,255,.6); border-radius:999px; padding:6px 11px; font-size:.72rem; font-weight:800; }
-.kardex-body { padding:20px 22px 26px; }
+.kardex-body { padding:20px 0 26px; }
 .info-strip { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; color:#0b3d62; }
 .info-strip span { color:#71808f; font-size:.8rem; }
 .filters-panel { border:1px solid #e1e7ed; border-radius:11px; padding:15px; background:#f8fafc; margin-bottom:18px; }
 .filter-title { color:#e85d04; font-weight:800; margin-bottom:12px; }
-.filter-grid { display:grid; grid-template-columns:2fr 1.4fr 1fr 1fr auto; gap:10px; align-items:end; }
+.filter-grid { display:grid; grid-template-columns:2fr 1.2fr 1.1fr 1fr 1fr auto; gap:10px; align-items:end; }
 .filter-grid label { color:#243447; font-size:.78rem; font-weight:700; } .filter-grid input { margin-top:5px; }
 .filter-actions { display:flex; gap:7px; } .btn-search,.btn-clear { min-height:38px; border-radius:8px; padding:8px 14px; font-weight:700; white-space:nowrap; }
 .btn-search { border:0; background:#e85d04; color:#fff; } .btn-search:hover { background:#d94f00; }

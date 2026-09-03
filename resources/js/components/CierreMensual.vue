@@ -1,6 +1,6 @@
 <template>
 <section class="cm-page">
-  <div class="cm-hero"><h2>Inventario mensual</h2><p>Genere y conserve el cierre mensual del almacén con saldo anterior, ingresos, egresos y saldo del mes.</p></div>
+  <div class="cm-hero"><h2>Cierres mensuales</h2><p>Genere y conserve el cierre mensual del almacén con saldo anterior, ingresos, egresos y saldo del mes.</p></div>
   <div class="cm-card">
     <div class="cm-title">1. Preparar cierre mensual</div>
     <div class="cm-controls"><div><label>Periodo</label><input type="month" v-model="periodo" class="form-control"></div><div><label>Almacén</label><input v-model="almacen" class="form-control"></div><div class="cm-control-action"><button class="btn-csc-orange" :disabled="cargando" @click="previsualizar">{{ cargando?'Calculando...':'Previsualizar cierre' }}</button></div></div>

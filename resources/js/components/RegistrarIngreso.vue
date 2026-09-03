@@ -35,7 +35,7 @@
 
             <div class="col-lg-5 col-md-6">
               <label>Procedencia / proveedor</label>
-              <div class="position-relative">
+              <div class="position-relative proveedor-search-wrap">
                 <input
                   v-model.trim="form.proveedor.nombre"
                   id="busqueda-proveedor"
@@ -410,6 +410,12 @@ const cerrarProveedores = () => {
   proveedoresResultados.value = [];
 };
 
+const cerrarProveedoresFuera = event => {
+  if (!event.target.closest('.proveedor-search-wrap')) {
+    cerrarProveedores();
+  }
+};
+
 const seleccionarProveedor = proveedor => {
   form.value.proveedor.nombre = proveedor.nombre;
   form.value.proveedor.telefono = proveedor.telefono || '';
@@ -521,12 +527,14 @@ const seleccionarProducto = (item, p) => {
 };
 
 onMounted(() => {
+  document.addEventListener('click', cerrarProveedoresFuera);
   cargarSiguienteNumero();
   window.addEventListener('resize', actualizarPosiciones);
   window.addEventListener('scroll', actualizarPosiciones, true);
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', cerrarProveedoresFuera);
   window.removeEventListener('resize', actualizarPosiciones);
   window.removeEventListener('scroll', actualizarPosiciones, true);
   clearTimeout(timer);

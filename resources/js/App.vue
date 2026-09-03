@@ -93,7 +93,7 @@
         </div>
       </div>
 
-      <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' }">
+      <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' || vistaActual === 'kardex' }">
         <nav class="csc-nav">
           <button
             v-if="puedeModificar"

@@ -131,7 +131,8 @@
               <td colspan="9" class="empty-row">No se encontraron productos con los filtros seleccionados.</td>
             </tr>
 
-            <template v-else v-for="producto in productos" :key="producto.id">
+            <template v-if="!cargando && productos.length">
+              <template v-for="producto in productos" :key="producto.id">
               <tr class="product-row" :class="{ expanded: expandido === producto.id }">
                 <td>
                   <strong>{{ producto.nombre }}</strong>
@@ -203,6 +204,7 @@
                   </div>
                 </td>
               </tr>
+              </template>
             </template>
           </tbody>
         </table>
