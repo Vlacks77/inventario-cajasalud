@@ -79,3 +79,15 @@ Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])->post('/cierr
 Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}', [CierreMensualController::class, 'show']);
 Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}/pdf', [CierreMensualController::class, 'pdf']);
 Route::middleware('auth:sanctum')->get('/cierres-mensuales/{cierreMensual}/excel', [CierreMensualController::class, 'excel']);
+
+// ── Reembolsos Mensuales de Medicamentos ─────────────────────────────────────
+use App\Http\Controllers\Api\ReembolsoController;
+
+// Registro del reembolso (requiere rol de almacén o superior)
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->post('/reembolsos', [ReembolsoController::class, 'store']);
+
+// Consulta del detalle de un reembolso ya registrado (por ID de ingreso)
+Route::middleware('auth:sanctum')
+    ->get('/reembolsos/{ingreso}', [ReembolsoController::class, 'show']);
+

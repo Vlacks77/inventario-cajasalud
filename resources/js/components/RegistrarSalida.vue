@@ -21,10 +21,61 @@
             <div class="col-lg-3 col-md-6"><label>N.º de salida</label><input :value="numeroSalida ?? 'Cargando...'" type="text" class="form-control fw-bold" readonly><small class="field-help">Correlativo automático.</small></div>
             <div class="col-lg-6"><label>Almacén de origen</label><input v-model.trim="form.almacen_origen" type="text" class="form-control" maxlength="150"></div>
 
-            <div class="col-lg-6"><label>Destino / establecimiento</label><select v-model="form.establecimiento_id" class="form-select" required :disabled="cargandoEstablecimientos">
-              <option value="" disabled>{{ cargandoEstablecimientos ? 'Cargando establecimientos...' : 'Seleccione un establecimiento...' }}</option>
-              <option v-for="establecimiento in establecimientos" :key="establecimiento.id" :value="establecimiento.id">{{ establecimiento.nombre }}<span v-if="establecimiento.sigla"> ({{ establecimiento.sigla }})</span></option>
-            </select></div>
+            <div class="col-lg-6">
+              <label>Destino / establecimiento</label>
+              <div class="unidad-solicitante-selector">
+                <label class="unidad-field-label">Seleccionar unidad solicitante</label>
+                <div class="unidad-busqueda-wrapper">
+                  <input
+                    v-model="busquedaUnidadSolicitante"
+                    @focus="mostrarSugerenciasUnidad = true"
+                    type="text"
+                    class="form-control"
+                    placeholder="Escriba el nombre de la unidad..."
+                    autocomplete="off"
+                    aria-label="Buscar unidad solicitante"
+                  >
+                  <button
+                    v-if="busquedaUnidadSolicitante"
+                    type="button"
+                    class="unidad-busqueda-limpiar"
+                    @click="limpiarBusquedaUnidad"
+                    title="Limpiar búsqueda"
+                    aria-label="Limpiar búsqueda"
+                  >×</button>
+                </div>
+
+                <div
+                  v-if="mostrarSugerenciasUnidad"
+                  class="unidad-sugerencias"
+                >
+                  <div class="unidad-sugerencias-title">
+                    {{ busquedaUnidadSolicitante ? 'Sugerencias encontradas' : 'Unidades solicitantes oficiales' }}
+                  </div>
+                  <button
+                    v-for="unidad in unidadesSolicitantesFiltradas"
+                    :key="unidad"
+                    type="button"
+                    class="unidad-sugerencia"
+                    @mousedown.prevent="seleccionarUnidadSolicitante(unidad)"
+                  >
+                    {{ unidad }}
+                  </button>
+                  <div v-if="unidadesSolicitantesFiltradas.length === 0" class="unidad-sin-resultados">
+                    No se encontraron unidades que coincidan con la búsqueda.
+                  </div>
+                </div>
+
+                <div v-if="form.destino_establecimiento" class="unidad-seleccionada">
+                  <span>Destino seleccionado:</span>
+                  <strong>{{ form.destino_establecimiento }}</strong>
+                </div>
+
+                <small class="field-help">
+                  Escriba para buscar y seleccione una unidad de la lista de sugerencias.
+                </small>
+              </div>
+            </div>
             <div class="col-lg-6"><label>N.º de pedido / documento</label><input v-model.trim="form.numero_pedido" type="text" class="form-control" maxlength="100" placeholder="Número del documento físico"></div>
 
             <div class="col-lg-6"><label>Responsable que solicita</label>
@@ -87,7 +138,8 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { unidadesSolicitantes } from '../data/unidadesSolicitantes';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import axios from 'axios'
 
 
@@ -177,6 +229,27 @@ const error = ref('')
 
 /*
 |--------------------------------------------------------------------------
+| RESPONSABLES
+|--------------------------------------------------------------------------
+*/
+
+const mismoResponsable = ref(true)
+
+const sincronizarResponsable = () => {
+  if (mismoResponsable.value) {
+    form.value.entregado_a = form.value.solicitado_por
+  }
+}
+
+const cambiarModoResponsable = () => {
+  if (mismoResponsable.value) {
+    form.value.entregado_a = form.value.solicitado_por
+  }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | COMPUTED
 |--------------------------------------------------------------------------
 */
@@ -204,12 +277,14 @@ const puedeAgregarDetalle = computed(() => {
 
 
 const puedeGuardar = computed(() => {
-  return (
+  return Boolean(
     form.value.fecha_salida &&
-    form.value.almacen_origen.trim() &&
-    form.value.establecimiento_id &&
-    form.value.solicitado_por.trim() &&
-    detalles.value.length > 0
+    form.value.almacen_origen?.trim() &&
+    form.value.destino_establecimiento?.trim() &&
+    form.value.solicitado_por?.trim() &&
+    form.value.entregado_a?.trim() &&
+    detalles.value.length > 0 &&
+    detalles.value.every(detalle => Number(detalle.lote_id) > 0 && Number(detalle.cantidad) >= 1)
   )
 })
 
@@ -760,7 +835,8 @@ const procesarSalida = async () => {
     const payload = {
       fecha_salida: form.value.fecha_salida,
       almacen_origen: form.value.almacen_origen.trim(),
-      establecimiento_id: Number(form.value.establecimiento_id),
+      establecimiento_id: form.value.establecimiento_id ? Number(form.value.establecimiento_id) : null,
+      destino_establecimiento: form.value.destino_establecimiento.trim(),
       numero_pedido: form.value.numero_pedido.trim() || null,
       solicitado_por: form.value.solicitado_por.trim(),
       entregado_a: form.value.entregado_a.trim() || null,
@@ -795,6 +871,7 @@ const procesarSalida = async () => {
     }
 
     numeroSalida.value = Number(respuesta.data?.salida?.numero_salida || 0) + 1
+    mismoResponsable.value = true
 
     detalles.value = []
 
@@ -861,8 +938,174 @@ onMounted(async () => {
 
   buscadorMedicamento.value?.focus()
 })
+
+onMounted(() => {
+  document.addEventListener('click', cerrarSugerenciasUnidad);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', cerrarSugerenciasUnidad);
+});
+
+const busquedaUnidadSolicitante = ref('');
+const mostrarSugerenciasUnidad = ref(false);
+
+const normalizarTextoUnidad = (valor = '') =>
+  String(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const unidadesSolicitantesFiltradas = computed(() => {
+  const termino = normalizarTextoUnidad(busquedaUnidadSolicitante.value);
+
+  if (!termino) {
+    return unidadesSolicitantes;
+  }
+
+  const palabras = termino.split(/\s+/).filter(Boolean);
+
+  return unidadesSolicitantes.filter((unidad) => {
+    const texto = normalizarTextoUnidad(unidad);
+    return palabras.every((palabra) => texto.includes(palabra));
+  });
+});
+
+const buscarIdEstablecimiento = (nombreUnidad) => {
+  const buscado = normalizarTextoUnidad(nombreUnidad);
+
+  const encontrado = establecimientos.value.find((establecimiento) => {
+    return normalizarTextoUnidad(establecimiento.nombre) === buscado;
+  });
+
+  return encontrado?.id ?? '';
+};
+
+const seleccionarUnidadSolicitante = (unidad) => {
+  if (!unidad) {
+    form.value.destino_establecimiento = '';
+    form.value.establecimiento_id = '';
+    return;
+  }
+
+  form.value.destino_establecimiento = unidad;
+  form.value.establecimiento_id = buscarIdEstablecimiento(unidad);
+  busquedaUnidadSolicitante.value = unidad;
+  mostrarSugerenciasUnidad.value = false;
+  error.value = '';
+};
+
+const limpiarBusquedaUnidad = () => {
+  busquedaUnidadSolicitante.value = '';
+  mostrarSugerenciasUnidad.value = true;
+};
+
+const cerrarSugerenciasUnidad = (evento) => {
+  const selector = evento.target?.closest?.('.unidad-solicitante-selector');
+  if (!selector) {
+    mostrarSugerenciasUnidad.value = false;
+  }
+};
 </script>
 <style scoped>
+.unidad-solicitante-selector {
+    position: relative;
+}
+.unidad-busqueda-wrapper {
+    position: relative;
+}
+.unidad-busqueda-limpiar {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #6c757d;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+.unidad-busqueda-limpiar:hover {
+    color: #0b3d62;
+}
+.unidad-solicitante-selector select {
+    min-height: 42px;
+}
+
+
+.unidad-field-label{
+  display:block;
+  color:#0b3d62;
+  font-size:.72rem;
+  font-weight:800;
+  margin:0 0 5px;
+}
+.unidad-sugerencias{
+  position:absolute;
+  z-index:1060;
+  left:0;
+  right:0;
+  margin-top:4px;
+  background:#fff;
+  border:1px solid #d6e0e8;
+  border-radius:9px;
+  box-shadow:0 12px 25px rgba(20,48,70,.16);
+  max-height:270px;
+  overflow-y:auto;
+}
+.unidad-sugerencias-title{
+  padding:9px 11px;
+  background:#f5f8fb;
+  border-bottom:1px solid #e1e7ed;
+  color:#0b3d62;
+  font-size:.7rem;
+  font-weight:800;
+  position:sticky;
+  top:0;
+  z-index:1;
+}
+.unidad-sugerencia{
+  display:block;
+  width:100%;
+  border:0;
+  border-bottom:1px solid #edf1f4;
+  background:#fff;
+  text-align:left;
+  padding:9px 11px;
+  color:#173c5a;
+  font-size:.78rem;
+  font-weight:600;
+}
+.unidad-sugerencia:hover{
+  background:#eef5fa;
+  color:#0b3d62;
+}
+.unidad-sin-resultados{
+  padding:12px;
+  text-align:center;
+  color:#71808f;
+  font-size:.75rem;
+}
+.unidad-seleccionada{
+  margin-top:7px;
+  padding:7px 9px;
+  border:1px solid #cfe3f0;
+  border-left:4px solid #e85d04;
+  border-radius:7px;
+  background:#f7fafc;
+  color:#71808f;
+  font-size:.7rem;
+}
+.unidad-seleccionada strong{
+  display:block;
+  color:#0b3d62;
+  font-size:.76rem;
+  margin-top:2px;
+}
 .salida-card{background:#fff;border:1px solid #e1e7ed;border-radius:14px;overflow:hidden;box-shadow:0 5px 20px rgba(20,48,70,.07)}
 .salida-alert{margin:18px 22px 0}.salida-hero{background:#0b3d62;color:#fff;border-bottom:4px solid #e85d04;min-height:88px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}.salida-hero h2{font-size:1.45rem;margin:0 0 4px;font-weight:700}.salida-hero p{margin:0;color:rgba(255,255,255,.85);font-size:.88rem}
 .salida-note{min-width:170px;border:1px solid rgba(255,255,255,.65);text-align:center;background:#fff;color:#0b3d62;border-radius:8px;overflow:hidden}.salida-note span{display:block;background:#0b3d62;color:#fff;font-size:.68rem;font-weight:800;padding:5px}.salida-note strong{display:block;color:#e85d04;font-size:1.15rem;padding:6px}

@@ -317,23 +317,34 @@ class CierreMensualController extends Controller
         $prevDetalles=$anterior ? $anterior->detalles()->get()->keyBy('medicamento_id') : collect();
         $productos=Medicamento::with('partidaPresupuestaria:id,codigo')->where('estado',true)->orderBy('partida_presupuestaria_id')->orderBy('codigo')->orderBy('nombre')->get();
         $lotes=Lote::with('ingreso:id,fecha_ingreso,tipo_ingreso')->whereHas('ingreso')->get()->groupBy('medicamento_id');
-        $salidas=DetalleSalida::with('salida:id,fecha_salida,estado')->whereHas('salida',fn($q)=>$q->where('estado','ACTIVA'))->get()->groupBy(fn($d)=>$d->lote?->medicamento_id);
-        // detalleSalidas no carga lote si no se pide: relacionamos por lote_id mediante mapa
+        // Cargamos salidas con tipo_salida y precio_unitario_reembolso para poder usar el CPP en egresos de reembolso.
         $loteToMed=Lote::pluck('medicamento_id','id');
-        $salidas=DetalleSalida::with('salida:id,fecha_salida,estado')->whereHas('salida',fn($q)=>$q->where('estado','ACTIVA'))->get()->groupBy(fn($d)=>$loteToMed[$d->lote_id] ?? 0);
+        $salidas=DetalleSalida::with('salida:id,fecha_salida,estado,tipo_salida')->whereHas('salida',fn($q)=>$q->where('estado','ACTIVA'))->get()->groupBy(fn($d)=>$loteToMed[$d->lote_id] ?? 0);
         $detalles=[];
         foreach($productos as $p){
             $movLotes=$lotes->get($p->id,collect());$movSalidas=$salidas->get($p->id,collect());
             if($anterior && $prevDetalles->has($p->id)){$pd=$prevDetalles[$p->id];$saq=(float)$pd->saldo_mes_cantidad;$sai=(float)$pd->saldo_mes_importe;}
             else {
                 $saq=0;$sai=0;
-                foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if($f && Carbon::parse($f)->lt($desde)){$saq+=(float)$l->cantidad_inicial;$sai+=(float)$l->importe_total;}}
-                foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if($f && Carbon::parse($f)->lt($desde)){$q=(float)$s->cantidad;$precio=(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$saq-=$q;$sai-=$q*$precio;}}
+                foreach($movLotes as $l){
+                    // Los lotes virtuales de reembolso (es_reembolso=true) no integran el saldo físico anterior;
+                    // su stock se zeroa en el mismo período tras el egreso consolidado.
+                    if($l->es_reembolso) continue;
+                    $f=$l->ingreso?->fecha_ingreso;if($f && Carbon::parse($f)->lt($desde)){$saq+=(float)$l->cantidad_inicial;$sai+=(float)$l->importe_total;}
+                }
+                foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if($f && Carbon::parse($f)->lt($desde)){$q=(float)$s->cantidad;$precio=$s->salida?->tipo_salida==='EGRESO_REEMBOLSO'?(float)($s->precio_unitario_reembolso??0):(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$saq-=$q;$sai-=$q*$precio;}}
             }
             $trq=$tri=$clq=$cli=0;
-            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;if(in_array($l->ingreso->tipo_ingreso, ['transferencia', 'transferencia_regional'], true)){$trq+=$q;$tri+=$imp;}else{$clq+=$q;$cli+=$imp;}}
+            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;
+                // Reembolso va a la columna Transferencias/Ingresos (mismo criterio contable institucional).
+                if(in_array($l->ingreso->tipo_ingreso,['transferencia','transferencia_regional','reembolso'],true)){$trq+=$q;$tri+=$imp;}else{$clq+=$q;$cli+=$imp;}
+            }
             $eq=$ei=0;
-            foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$s->cantidad;$precio=(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$eq+=$q;$ei+=$q*$precio;}
+            foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$s->cantidad;
+                // Para EGRESO_REEMBOLSO usamos el CPP guardado en precio_unitario_reembolso.
+                $precio=$s->salida?->tipo_salida==='EGRESO_REEMBOLSO'?(float)($s->precio_unitario_reembolso??0):(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;
+                $eq+=$q;$ei+=$q*$precio;
+            }
             $tiq=$trq+$clq;$tii=$tri+$cli;$smq=$saq+$tiq-$eq;$smi=$sai+$tii-$ei;
             // Protección contra pequeños negativos de redondeo o datos históricos incompletos.
             $smi=max(0,$smi);$smq=max(0,$smq);

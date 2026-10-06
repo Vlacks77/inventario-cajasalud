@@ -75,9 +75,9 @@ class ReporteController extends Controller
     public function inventarioExcel(Request $request) { $data=$this->inventarioData($request); return $this->excel('Inventario de almacén',view('excel.inventario',['productos'=>$data,'fecha'=>now()])->render(),'reporte-inventario-'.now()->format('Ymd-His').'.xls'); }
     private function inventarioData(Request $r) {
         $buscar=trim($r->query('buscar','')); $partida=trim($r->query('partida','')); $grupo=trim($r->query('grupo','')); $ids=array_filter(array_map('intval', explode(',', (string)$r->query('producto_ids',''))));
-        return Medicamento::with(['partidaPresupuestaria','lotes'=>fn($q)=>$q->with('proveedor')->where('cantidad_actual','>',0)])->where('estado',true)
+        return Medicamento::with(['partidaPresupuestaria','lotes'=>fn($q)=>$q->with('proveedor')->where('es_reembolso',false)->where('cantidad_actual','>',0)])->where('estado',true)
           ->when(!empty($ids),fn($q)=>$q->whereIn('id',$ids))
-          ->when(empty($ids),fn($q)=>$q->whereHas('lotes',fn($x)=>$x->where('cantidad_actual','>',0)))
+          ->when(empty($ids),fn($q)=>$q->whereHas('lotes',fn($x)=>$x->where('es_reembolso',false)->where('cantidad_actual','>',0)))
           ->when(empty($ids) && $buscar!=='',fn($q)=>$q->where(fn($x)=>$x->where('codigo','like',"%$buscar%")->orWhere('nombre','like',"%$buscar%")))
           ->when($partida!=='',fn($q)=>$q->whereHas('partidaPresupuestaria',fn($x)=>$x->where('codigo',$partida)))
           ->when($grupo!=='',fn($q)=>$q->where('grupo_producto',$grupo))->orderBy('nombre')->get()->map(function($p){$p->stock_total=$p->lotes->sum('cantidad_actual');$p->valor_total=$p->lotes->sum(fn($l)=>$l->cantidad_actual*(float)$l->precio_unitario);return $p;});
@@ -86,7 +86,20 @@ class ReporteController extends Controller
         $productoId=$request->query('producto_id'); abort_unless($productoId,422,'Seleccione un producto');
         $producto=Medicamento::findOrFail($productoId); $desde=$request->query('desde');$hasta=$request->query('hasta');
         $lotes=Lote::with(['ingreso.proveedor','ingreso.usuario','detalleSalidas.salida.establecimiento','detalleSalidas.salida.usuario'])->where('medicamento_id',$productoId)->get(); $mov=[];
-        foreach($lotes as $l){ if($l->ingreso && (!$desde || $l->ingreso->fecha_ingreso >= $desde) && (!$hasta || $l->ingreso->fecha_ingreso <= $hasta)) $mov[]=['fecha'=>$l->ingreso->fecha_ingreso,'tipo'=>'INGRESO','referencia'=>$l->ingreso->numero_nota,'lote'=>$l->codigo_lote,'entrada'=>$l->cantidad_inicial,'salida'=>0,'usuario'=>$l->ingreso->usuario?->name ?? 'Sin trazabilidad']; foreach($l->detalleSalidas as $d){$s=$d->salida;if($s && (!$desde||$s->fecha_salida >= $desde)&&(!$hasta||$s->fecha_salida <=$hasta))$mov[]=['fecha'=>$s->fecha_salida,'tipo'=>'SALIDA','referencia'=>'Salida N.º '.$s->numero_salida,'lote'=>$l->codigo_lote,'entrada'=>0,'salida'=>$d->cantidad,'usuario'=>$s->usuario?->name ?? 'Sin trazabilidad'];}}
+        foreach($lotes as $l){
+            if($l->ingreso && (!$desde || $l->ingreso->fecha_ingreso >= $desde) && (!$hasta || $l->ingreso->fecha_ingreso <= $hasta)) {
+                $tipo = $l->ingreso->tipo_ingreso === 'reembolso' ? 'REEMBOLSO_INGRESO' : 'INGRESO';
+                $mov[]=['fecha'=>$l->ingreso->fecha_ingreso,'tipo'=>$tipo,'referencia'=>$l->ingreso->numero_nota,'lote'=>$l->codigo_lote,'entrada'=>$l->cantidad_inicial,'salida'=>0,'usuario'=>$l->ingreso->usuario?->name ?? 'Sin trazabilidad'];
+            }
+            foreach($l->detalleSalidas as $d){
+                $s=$d->salida;
+                if($s && (!$desde||$s->fecha_salida >= $desde)&&(!$hasta||$s->fecha_salida <=$hasta)) {
+                    $tipo = $s->tipo_salida === 'EGRESO_REEMBOLSO' ? 'EGRESO_REEMBOLSO' : 'SALIDA';
+                    $ref = $s->tipo_salida === 'EGRESO_REEMBOLSO' ? 'Reembolso N.º '.$s->numero_salida : 'Salida N.º '.$s->numero_salida;
+                    $mov[]=['fecha'=>$s->fecha_salida,'tipo'=>$tipo,'referencia'=>$ref,'lote'=>$l->codigo_lote,'entrada'=>0,'salida'=>$d->cantidad,'usuario'=>$s->usuario?->name ?? 'Sin trazabilidad'];
+                }
+            }
+        }
         usort($mov,fn($a,$b)=>strcmp($a['fecha'],$b['fecha'])); $stock=0; foreach($mov as &$m){$stock += $m['entrada']-$m['salida'];$m['stock']=$stock;} return Pdf::loadView('pdf.kardex',compact('producto','mov','desde','hasta'))->setPaper('letter','portrait')->download('kardex-'.$producto->codigo.'.pdf', ['Content-Type' => 'application/pdf']);
     }
     private function montoEnLetras(float $monto): string

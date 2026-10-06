@@ -13,7 +13,30 @@ class DetalleSalida extends Model
         'salida_id',
         'lote_id',
         'cantidad',
+        'precio_unitario_reembolso',  // CPP calculado en consolidación; null en salidas normales
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'cantidad'                    => 'integer',
+            'precio_unitario_reembolso'   => 'decimal:6',
+        ];
+    }
+
+    /**
+     * Precio unitario efectivo para el Kardex:
+     *  - En egresos de reembolso devuelve el CPP calculado.
+     *  - En salidas normales devuelve el precio_unitario del lote asociado.
+     */
+    public function getPrecioUnitarioEfectivoAttribute(): float
+    {
+        if ($this->precio_unitario_reembolso !== null) {
+            return (float) $this->precio_unitario_reembolso;
+        }
+
+        return (float) ($this->lote?->precio_unitario ?? 0);
+    }
 
     /**
      * Cabecera de la salida.

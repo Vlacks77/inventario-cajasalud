@@ -18,7 +18,7 @@ class StoreIngresoRequest extends FormRequest
             'ingreso.numero_remision' => ['nullable', 'string', 'max:100'],
             'ingreso.numero_factura' => ['nullable', 'string', 'max:100'],
             'ingreso.numero_orden_compra' => ['nullable', 'string', 'max:100'],
-            'ingreso.tipo_ingreso' => ['required', 'in:compra_local,transferencia,transferencia_regional,donacion,devolucion,otro'],
+            'ingreso.tipo_ingreso' => ['required', 'in:compra_local,transferencia,transferencia_regional,donacion,devolucion,reembolso,otro'],
             'ingreso.observacion' => ['nullable', 'string'],
             'ingreso.recibido_por' => ['required', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1', 'max:100'],

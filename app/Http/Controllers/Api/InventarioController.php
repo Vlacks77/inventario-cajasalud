@@ -41,7 +41,8 @@ class InventarioController extends Controller
         $productos = Medicamento::with([
                 'partidaPresupuestaria:id,codigo,nombre',
                 'lotes' => function ($query) {
-                    $query->where('cantidad_actual', '>', 0)
+                    $query->where('es_reembolso', false)
+                        ->where('cantidad_actual', '>', 0)
                         ->with(['proveedor:id,nombre', 'ingreso:id,fecha_ingreso'])
                         ->orderByRaw('fecha_vencimiento IS NULL')
                         ->orderBy('fecha_vencimiento')

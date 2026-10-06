@@ -93,7 +93,7 @@
         </div>
       </div>
 
-      <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' || vistaActual === 'kardex' }">
+      <main class="csc-main" :class="{ 'csc-main-wide': vistaActual === 'cierre-mensual' || vistaActual === 'kardex' || vistaActual === 'reembolso' }">
         <nav class="csc-nav">
           <button
             v-if="puedeModificar"
@@ -111,6 +111,15 @@
             @click="vistaActual = 'salida'"
           >
             Registrar salida
+          </button>
+
+          <button
+            v-if="puedeModificar"
+            class="csc-nav-link"
+            :class="{ active: vistaActual === 'reembolso' }"
+            @click="vistaActual = 'reembolso'"
+          >
+            Reembolsos
           </button>
 
           <button
@@ -144,6 +153,11 @@
           :regional="usuarioActual.regional"
         />
         <RegistrarSalida v-show="vistaActual === 'salida' && puedeModificar" />
+        <Reembolsos
+          v-show="vistaActual === 'reembolso' && puedeModificar"
+          :recibido-por="usuarioActual.nombre"
+          :regional="usuarioActual.regional"
+        />
         <Inventario v-show="vistaActual === 'inventario'" />
         <Kardex v-show="vistaActual === 'kardex'" />
         <Reportes v-show="vistaActual === 'reportes'" />
@@ -179,6 +193,7 @@ import Inventario from './components/Inventario.vue';
 import Kardex from './components/Kardex.vue';
 import RegistrarSalida from './components/RegistrarSalida.vue';
 import RegistrarIngreso from './components/RegistrarIngreso.vue';
+import Reembolsos from './components/Reembolsos.vue';
 import Reportes from './components/Reportes.vue';
 import CierreMensual from './components/CierreMensual.vue';
 import { obtenerRegional } from './data/regionales.js';

@@ -39,4 +39,20 @@ class Ingreso extends Model
         return $this->belongsTo(User::class, 'usuario_id');
     }
     public function lotes(): HasMany { return $this->hasMany(Lote::class); }
+
+    /**
+     * Egreso consolidado generado automáticamente por este ingreso de reembolso.
+     * Solo existe cuando tipo_ingreso = 'reembolso'.
+     */
+    public function egresoReembolso(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\Salida::class, 'movimiento_origen_id')
+                    ->where('tipo_salida', 'EGRESO_REEMBOLSO');
+    }
+
+    /** Filtra solo ingresos de tipo reembolso mensual. */
+    public function scopeReembolso($query)
+    {
+        return $query->where('tipo_ingreso', 'reembolso');
+    }
 }

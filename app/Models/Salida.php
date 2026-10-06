@@ -21,6 +21,8 @@ class Salida extends Model
         'entregado_a',
         'observaciones',
         'estado',
+        'tipo_salida',          // 'normal' | 'EGRESO_REEMBOLSO'
+        'movimiento_origen_id', // FK nullable → ingresos.id (solo para EGRESO_REEMBOLSO)
         'usuario_id',
     ];
 
@@ -58,5 +60,30 @@ class Salida extends Model
     public function detalles(): HasMany
     {
         return $this->hasMany(DetalleSalida::class);
+    }
+
+    /**
+     * Ingreso de reembolso que originó este egreso consolidado.
+     * Solo aplica cuando tipo_salida = 'EGRESO_REEMBOLSO'.
+     */
+    public function movimientoOrigen(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Ingreso::class, 'movimiento_origen_id');
+    }
+
+    // ── Scopes ───────────────────────────────────────────────────────────────
+
+    /** Excluye los egresos de reembolso (para reportes de salidas regulares). */
+    public function scopeNormal($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('tipo_salida')->orWhere('tipo_salida', 'normal');
+        });
+    }
+
+    /** Filtra solo egresos de reembolso. */
+    public function scopeEgresoReembolso($query)
+    {
+        return $query->where('tipo_salida', 'EGRESO_REEMBOLSO');
     }
 }

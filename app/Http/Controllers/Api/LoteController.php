@@ -10,6 +10,7 @@ class LoteController extends Controller
     public function index(int $medicamento)
     {
         $lotes = Lote::where('medicamento_id', $medicamento)
+            ->where('es_reembolso', false)
             ->where('cantidad_actual', '>', 0)
             ->orderBy('fecha_vencimiento')
             ->get([
