@@ -84,7 +84,7 @@ class ClasificadorInventarioService
         return preg_replace('/\.0$/', '', $codigo);
     }
 
-    private function normalizar(?string $texto): string
+    public function normalizar(?string $texto): string
     {
         $texto = trim((string) $texto);
 
@@ -92,12 +92,10 @@ class ClasificadorInventarioService
             return '';
         }
 
-        if (function_exists('iconv')) {
-            $convertido = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
-            if ($convertido !== false) {
-                $texto = $convertido;
-            }
-        }
+        // Reemplazo directo de tildes y caracteres diacríticos para compatibilidad multiplataforma
+        $buscar = ['Á','É','Í','Ó','Ú','Ñ','á','é','í','ó','ú','ñ','\'','`','´'];
+        $reemplazo = ['A','E','I','O','U','N','A','E','I','O','U','N','','',''];
+        $texto = str_replace($buscar, $reemplazo, $texto);
 
         return strtoupper(preg_replace('/\s+/', ' ', $texto));
     }

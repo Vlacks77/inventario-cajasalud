@@ -23,8 +23,8 @@ $XLSX = __DIR__ . '/Inventario con items y codigos liname actualizados al 01 de 
 
 // Codigos S/C del XLSX → codigo institucional controlado
 $MAP_SC = [
-    'Acido Ascorbico (Vitamina C)' => 'SC-A001',
-    'Loratadina'                   => 'SC-L001',
+    'Acido Ascorbico (Vitamina C)' => 'P7778',
+    'Loratadina'                   => 'P7777',
 ];
 
 // ── Conexion PDO ──────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ class Ingreso extends Model
         'almacen',
         'fecha_ingreso',
         'numero_nota',
+        'correlativo_anual',
         'numero_remision',
         'numero_factura',
         'numero_orden_compra',

@@ -7,15 +7,28 @@ use App\Models\Salida;
 use App\Models\Establecimiento;
 use App\Services\SalidaService;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class SalidaController extends Controller
 {
-    public function siguienteNumero()
+    /**
+     * Devuelve el siguiente número correlativo de salida para el mes correspondiente.
+     * La numeración de salidas se resetea cada mes iniciando en 1.
+     */
+    public function siguienteNumero(Request $request)
     {
-        $siguiente = ((int) Salida::max('numero_salida')) + 1;
+        $fecha = $request->query('fecha', now()->toDateString());
+        $carbon = Carbon::parse($fecha);
+
+        $max = Salida::whereYear('fecha_salida', $carbon->year)
+            ->whereMonth('fecha_salida', $carbon->month)
+            ->max('numero_salida');
+
+        $siguiente = ((int) $max) + 1;
 
         return response()->json([
             'numero_salida' => $siguiente,
+            'periodo'       => $carbon->format('Y-m'),
         ]);
     }
 

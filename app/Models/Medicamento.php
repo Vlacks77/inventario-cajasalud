@@ -46,4 +46,25 @@ class Medicamento extends Model
     {
         return $this->belongsTo(PartidaPresupuestaria::class);
     }
+
+    /**
+     * Devuelve el nombre del medicamento asegurando que no se duplique
+     * la concentración si ésta ya forma parte del campo 'nombre'.
+     */
+    public function getDescripcionCompletaAttribute(): string
+    {
+        $nombre = trim((string) $this->nombre);
+        $concentracion = trim((string) ($this->concentracion ?? ''));
+
+        if (!empty($concentracion) && !str_contains(mb_strtolower($nombre), mb_strtolower($concentracion))) {
+            return $nombre . ' ' . $concentracion;
+        }
+
+        return $nombre;
+    }
+
+    public function getNombreCompletoAttribute(): string
+    {
+        return $this->descripcion_completa;
+    }
 }

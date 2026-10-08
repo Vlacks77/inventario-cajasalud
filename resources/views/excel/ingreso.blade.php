@@ -32,12 +32,37 @@ body{font-family:Arial,sans-serif;color:#222}
 <table class="items">
 <thead><tr><th>Partida</th><th>LINAME</th><th>Descripción / concentración</th><th>Forma / unidad</th><th>Lote</th><th>Vencimiento</th><th>Cantidad</th><th>P. Unit. (Bs)</th><th>Importe (Bs)</th></tr></thead>
 <tbody>
-@foreach($ingreso->lotes as $lote)
+@php
+    $itemsMostrar = ($ingreso->tipo_ingreso === 'reembolso')
+        ? $ingreso->lotes->groupBy('medicamento_id')->map(function($grupo) {
+            $primer = $grupo->first();
+            $cantTotal = (float) $grupo->sum('cantidad_inicial');
+            $impTotal = (float) $grupo->sum('importe_total');
+            $cpp = $cantTotal > 0 ? ($impTotal / $cantTotal) : 0;
+            return (object) [
+                'medicamento' => $primer->medicamento,
+                'codigo_lote' => $grupo->pluck('codigo_lote')->filter()->unique()->implode(', ') ?: 'REEMBOLSO',
+                'fecha_vencimiento' => $primer->fecha_vencimiento,
+                'cantidad_inicial' => $cantTotal,
+                'precio_unitario' => $cpp,
+                'importe_total' => $impTotal,
+            ];
+        })
+        : $ingreso->lotes;
+@endphp
+@foreach($itemsMostrar as $lote)
+@php
+    $med = $lote->medicamento;
+    $descripcion = $med->nombre ?? '';
+    if (!empty($med->concentracion) && !str_contains(mb_strtolower($descripcion), mb_strtolower($med->concentracion))) {
+        $descripcion .= ' ' . $med->concentracion;
+    }
+@endphp
 <tr>
-<td>{{ $lote->medicamento->partidaPresupuestaria?->codigo ?? '—' }}</td><td>{{ $lote->medicamento->codigo }}</td>
-<td>{{ $lote->medicamento->nombre }} {{ $lote->medicamento->concentracion }}</td>
-<td>{{ $lote->medicamento->forma_farmaceutica }} / {{ $lote->medicamento->unidad_presentacion }}</td>
-<td>{{ $lote->codigo_lote }}</td><td>{{ $lote->fecha_vencimiento?->format('d/m/Y') ?? 'No aplica' }}</td>
+<td>{{ $med->partidaPresupuestaria?->codigo ?? '—' }}</td><td>{{ $med->codigo }}</td>
+<td>{{ $descripcion }}</td>
+<td>{{ $med->forma_farmaceutica }} / {{ $med->unidad_presentacion }}</td>
+<td>{{ $lote->codigo_lote }}</td><td>{{ $lote->fecha_vencimiento ? \Carbon\Carbon::parse($lote->fecha_vencimiento)->format('d/m/Y') : 'No aplica' }}</td>
 <td>{{ $lote->cantidad_inicial }}</td><td>{{ number_format((float)$lote->precio_unitario,2,'.','') }}</td><td>{{ number_format((float)$lote->importe_total,2,'.','') }}</td>
 </tr>
 @endforeach

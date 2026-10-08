@@ -1,7 +1,39 @@
 <template>
+  <div class="salida-container">
   <form class="salida-card" @submit.prevent="procesarSalida" novalidate>
-    <div v-if="mensajeExito" class="alert alert-success rounded-3 salida-alert">
-      {{ mensajeExito }} <button type="button" class="btn-close" @click="mensajeExito = ''"></button>
+    <div v-if="mensajeExito" class="alert alert-success rounded-3 salida-alert p-3 shadow-sm">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="fs-4">✅</span>
+          <div>
+            <strong>¡Salida registrada exitosamente!</strong>
+            <div class="small">
+              Nota de Salida N.º <strong>{{ salidaRegistrada?.numero_salida ?? numeroSalida - 1 }}</strong> guardada en el sistema.
+            </div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button
+            v-if="salidaRegistrada?.id"
+            type="button"
+            class="btn btn-sm btn-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
+            :disabled="descargandoPdf"
+            @click="descargarPdfSalida()"
+          >
+            <span v-if="descargandoPdf" class="spinner-border spinner-border-sm" role="status"></span>
+            <span v-else>📄</span>
+            <span>Descargar Comprobante PDF</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-success"
+            @click="continuarNuevaSalida"
+          >
+            ➕ Nueva Salida / Continuar
+          </button>
+          <button type="button" class="btn-close ms-1" @click="mensajeExito = ''"></button>
+        </div>
+      </div>
     </div>
     <div v-if="error" class="alert alert-danger rounded-3 salida-alert">
       {{ error }} <button type="button" class="btn-close" @click="error = ''"></button>
@@ -135,11 +167,66 @@
       <div class="salida-footer-actions"><span v-if="detalles.length === 0">Agregue al menos un medicamento para guardar la salida.</span><button type="submit" class="btn btn-csc-orange px-5 shadow fw-bold" :disabled="procesando || !puedeGuardar"><span v-if="procesando" class="spinner-border spinner-border-sm me-2"></span>{{ procesando ? 'Guardando salida...' : 'Guardar salida' }}</button></div>
     </div>
   </form>
+
+  <!-- MODAL CONFIRMACIÓN POST-REGISTRO -->
+  <div v-if="mostrarModalExito" class="salida-modal-backdrop" @click.self="continuarNuevaSalida">
+    <div class="salida-modal-dialog">
+      <div class="salida-modal-content">
+        <div class="salida-modal-header bg-success text-white">
+          <h5 class="m-0 fw-bold">✅ Salida Registrada con Éxito</h5>
+          <button type="button" class="btn-close btn-close-white" @click="continuarNuevaSalida"></button>
+        </div>
+        <div class="salida-modal-body p-4 text-center">
+          <div class="salida-success-badge mb-3">
+            <span class="fs-1">📄</span>
+          </div>
+          <h4 class="fw-bold mb-1">Nota de Salida N.º {{ salidaRegistrada?.numero_salida }}</h4>
+          <p class="text-muted small mb-3">
+            La transacción ha sido guardada y el stock se ha descontado correctamente del inventario.
+          </p>
+          <div class="bg-light p-3 rounded-3 text-start small border mb-4">
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Fecha:</span>
+              <strong>{{ salidaRegistrada?.fecha_salida }}</strong>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Destino:</span>
+              <strong>{{ salidaRegistrada?.establecimiento?.nombre || salidaRegistrada?.destino_establecimiento || '—' }}</strong>
+            </div>
+            <div class="d-flex justify-content-between py-1">
+              <span class="text-muted">Solicitado por:</span>
+              <strong>{{ salidaRegistrada?.solicitado_por || '—' }}</strong>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <button
+              type="button"
+              class="btn btn-success btn-lg fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+              :disabled="descargandoPdf"
+              @click="descargarPdfSalida()"
+            >
+              <span v-if="descargandoPdf" class="spinner-border spinner-border-sm"></span>
+              <span v-else>📥</span>
+              <span>Descargar Comprobante PDF</span>
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="continuarNuevaSalida"
+            >
+              ➕ Nueva Salida / Continuar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
 </template>
 
 <script setup>
 import { unidadesSolicitantes } from '../data/unidadesSolicitantes';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 
 
@@ -225,6 +312,40 @@ const indiceEditando = ref(null)
 const procesando = ref(false)
 const mensajeExito = ref('')
 const error = ref('')
+const salidaRegistrada = ref(null)
+const mostrarModalExito = ref(false)
+const descargandoPdf = ref(false)
+
+const descargarPdfSalida = async (salidaId = null) => {
+  const id = salidaId || salidaRegistrada.value?.id
+  if (!id) return
+
+  descargandoPdf.value = true
+  try {
+    const r = await axios.get(`api/reportes/salidas/${id}/pdf`, { responseType: 'blob' })
+    const blob = new Blob([r.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `nota-salida-${salidaRegistrada.value?.numero_salida || id}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => window.URL.revokeObjectURL(url), 2000)
+  } catch (err) {
+    console.error('Error al descargar comprobante PDF:', err)
+    const token = localStorage.getItem('token') || ''
+    window.open(`api/reportes/salidas/${id}/pdf${token ? '?token=' + encodeURIComponent(token) : ''}`, '_blank')
+  } finally {
+    descargandoPdf.value = false
+  }
+}
+
+const continuarNuevaSalida = () => {
+  mostrarModalExito.value = false
+  salidaRegistrada.value = null
+  mensajeExito.value = ''
+}
 
 
 /*
@@ -346,7 +467,10 @@ const cargarSiguienteNumeroSalida = async () => {
   cargandoNumeroSalida.value = true
 
   try {
-    const respuesta = await axios.get('api/salidas/siguiente-numero')
+    const fecha = form.value?.fecha_salida || ''
+    const respuesta = await axios.get('api/salidas/siguiente-numero', {
+      params: fecha ? { fecha } : {}
+    })
     numeroSalida.value = respuesta.data?.numero_salida ?? null
   } catch (e) {
     console.error(e)
@@ -355,6 +479,10 @@ const cargarSiguienteNumeroSalida = async () => {
     cargandoNumeroSalida.value = false
   }
 }
+
+watch(() => form.value?.fecha_salida, () => {
+  cargarSiguienteNumeroSalida()
+})
 
 
 /*
@@ -853,6 +981,9 @@ const procesarSalida = async () => {
       payload
     )
 
+    salidaRegistrada.value = respuesta.data?.salida || null
+    mostrarModalExito.value = true
+
     mensajeExito.value =
       respuesta.data?.message ||
       'Salida registrada correctamente.'
@@ -1112,6 +1243,10 @@ const cerrarSugerenciasUnidad = (evento) => {
 .salida-body{padding:22px}.salida-section{border:1px solid #dbe4eb;border-radius:11px;background:#fff;margin-bottom:20px;overflow:visible}.section-heading{min-height:66px;padding:12px 18px;border-left:4px solid #e85d04;background:#f7fafc;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #e1e7ed}.section-kicker{display:block;color:#e85d04;font-size:.68rem;font-weight:800;letter-spacing:.04em}.section-heading h3{margin:2px 0 0;color:#0b3d62;font-size:1.05rem}.section-content{padding:18px}.salida-section label{display:block;color:#173c5a;font-size:.78rem;font-weight:800;margin-bottom:5px}.field-help{display:block;color:#71808f;font-size:.7rem;margin-top:4px}.count-badge{background:#0b3d62;color:#fff;border-radius:999px;padding:6px 10px;font-size:.7rem;font-weight:800}
 .receive-field{display:flex;flex-direction:column;gap:7px}.same-person-check{display:flex!important;align-items:center;gap:7px;color:#667788!important;font-size:.72rem!important;font-weight:600!important;margin:0!important}.same-person-check input{accent-color:#0b3d62}
 .search-icon{background:#f1f5f8;color:#0b3d62;border-color:#ced9e2;font-weight:900}.product-results{position:absolute;z-index:1050;left:12px;right:12px;top:calc(100% + 4px);background:#fff;border:1px solid #d6e0e8;border-radius:9px;box-shadow:0 12px 25px rgba(20,48,70,.16);overflow:hidden;max-height:280px;overflow-y:auto}.product-results button{display:block;width:100%;border:0;border-bottom:1px solid #edf1f4;background:#fff;text-align:left;padding:9px 11px;color:#173c5a}.product-results button:hover{background:#eef5fa}.product-results strong,.selected-product strong{display:block}.product-results small,.selected-product small{display:block;color:#71808f;margin-top:2px}.result-empty{padding:12px;text-align:center;color:#71808f}.selected-product{margin-top:8px;padding:9px 11px;border:1px solid #dbe4eb;border-left:4px solid #e85d04;border-radius:8px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center}.selected-product button{border:0;background:#fff;color:#b42318;font-size:1.1rem}.lot-info{margin-top:7px;color:#137a45;background:#edf8f1;border:1px solid #cce8d8;border-radius:7px;padding:6px 8px;font-size:.72rem}.add-actions{display:flex;align-items:center;gap:9px;margin-top:15px}.btn-outline-csc{border:1px solid #0b3d62;background:#fff;color:#0b3d62;border-radius:7px;padding:8px 13px}
-.salida-table{width:100%;border-collapse:collapse}.salida-table th{background:#0b3d62;color:#fff;padding:10px 9px;font-size:.76rem;text-align:left}.salida-table td{padding:10px 9px;border-bottom:1px solid #e3e9ee;color:#26394b}.salida-table td small{display:block;color:#71808f;margin-top:2px;font-size:.72rem}.salida-table tfoot td{background:#f5f8fb;border-bottom:0}.action-blue,.action-orange{border-radius:6px;padding:5px 9px;font-size:.72rem;font-weight:700;margin:0 3px}.action-blue{border:1px solid #0b3d62;background:#fff;color:#0b3d62}.action-orange{border:0;background:#e85d04;color:#fff}.empty-details{padding:28px;text-align:center;color:#71808f;background:#f8fafc}.empty-details strong,.empty-details span{display:block}.empty-details strong{color:#0b3d62;margin-bottom:3px}.salida-footer-actions{border-top:2px solid #e85d04;padding-top:15px;display:flex;justify-content:flex-end;align-items:center;gap:15px}.salida-footer-actions>span{color:#71808f;font-size:.78rem}
+.salida-table{width:100%;border-collapse:collapse}.salida-table th{background:#0b3d62;color:#fff;padding:10px 9px;font-size:.76rem;text-align:left}.salida-table td{padding:10px 9px;border-bottom:1px solid #e3e9ee;color:#26394b}.salida-table td small{display:block;color:#71808f;margin-top:2px;font-size:.72rem}.salida-table tfoot td{background:#f5f8fb;border-bottom:0}.action-blue,.action-orange{border-radius:6px;padding:5px 9px;font-size:.72rem;font-weight:700;margin:0 3px}.action-blue{border:1px solid #0b3d62;background:#fff;color:#0b3d62}.action-orange{border:0;background:#e85d04;color:#fff}.empty-details{padding:28px;text-align:center;color:#71808f;background:#f8fafc}.empty-details strong,.empty-details span{display:block}.empty-details strong{color:#0b3d62;margin-bottom:3px}.salida-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1060;padding:1rem}
+.salida-modal-dialog{max-width:480px;width:100%}
+.salida-modal-content{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.22)}
+.salida-modal-header{padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between}
+.salida-success-badge{width:68px;height:68px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto}
 @media(max-width:800px){.salida-hero{align-items:flex-start;flex-direction:column}.salida-note{width:100%}.salida-body{padding:14px}.add-actions,.salida-footer-actions{align-items:stretch;flex-direction:column}.salida-footer-actions .btn{width:100%}}
 </style>

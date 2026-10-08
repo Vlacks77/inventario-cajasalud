@@ -72,6 +72,9 @@ Route::middleware('auth:sanctum')->get('/reportes/kardex/pdf', [ReporteControlle
 
 // Cierre mensual y reporte institucional de inventario
 use App\Http\Controllers\Api\CierreMensualController;
+Route::middleware('auth:sanctum')->get('/inventario/resumen-mensual', [CierreMensualController::class, 'resumenMensual']);
+Route::middleware('auth:sanctum')->get('/inventario/resumen-mensual/excel', [CierreMensualController::class, 'resumenMensualExcel']);
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])->post('/inventario/resumen-mensual/cerrar', [CierreMensualController::class, 'congelarCierre']);
 Route::middleware('auth:sanctum')->get('/cierres-mensuales', [CierreMensualController::class, 'index']);
 Route::middleware('auth:sanctum')->get('/cierres-mensuales/preview', [CierreMensualController::class, 'preview']);
 Route::middleware('auth:sanctum')->get('/cierres-mensuales/productos/{medicamento}/preview', [CierreMensualController::class, 'productoPreview']);

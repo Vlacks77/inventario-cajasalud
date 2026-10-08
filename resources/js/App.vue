@@ -143,25 +143,35 @@
           </button>
 
           <button class="csc-nav-link" :class="{ active: vistaActual === 'cierre-mensual' }" @click="vistaActual = 'cierre-mensual'">
-            Inventario mensual
+            Cierre y Resumen Mensual
           </button>
         </nav>
 
         <RegistrarIngreso
-          v-show="vistaActual === 'ingreso' && puedeModificar"
+          v-if="vistaActual === 'ingreso' && puedeModificar"
           :recibido-por="usuarioActual.nombre"
           :regional="usuarioActual.regional"
         />
-        <RegistrarSalida v-show="vistaActual === 'salida' && puedeModificar" />
+        <RegistrarSalida
+          v-if="vistaActual === 'salida' && puedeModificar"
+        />
         <Reembolsos
-          v-show="vistaActual === 'reembolso' && puedeModificar"
+          v-if="vistaActual === 'reembolso' && puedeModificar"
           :recibido-por="usuarioActual.nombre"
           :regional="usuarioActual.regional"
         />
-        <Inventario v-show="vistaActual === 'inventario'" />
-        <Kardex v-show="vistaActual === 'kardex'" />
-        <Reportes v-show="vistaActual === 'reportes'" />
-        <CierreMensual v-show="vistaActual === 'cierre-mensual'" />
+        <Inventario
+          v-if="vistaActual === 'inventario'"
+        />
+        <Kardex
+          v-if="vistaActual === 'kardex'"
+        />
+        <Reportes
+          v-if="vistaActual === 'reportes'"
+        />
+        <CierreMensual
+          v-if="vistaActual === 'cierre-mensual'"
+        />
 
         <footer class="csc-system-credits" aria-label="Créditos del sistema">
           <a

@@ -72,15 +72,26 @@ body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color:#222; margin:
 </tr></thead>
 <tbody>
 @foreach($salida->detalles as $d)
+@php
+    $med = $d->lote->medicamento;
+    $descripcion = $med->nombre ?? '';
+    if (!empty($med->concentracion) && !str_contains(mb_strtolower($descripcion), mb_strtolower($med->concentracion))) {
+        $descripcion .= ' ' . $med->concentracion;
+    }
+    $precioUnit = ($salida->tipo_salida === 'EGRESO_REEMBOLSO' && $d->precio_unitario_reembolso !== null)
+        ? (float) $d->precio_unitario_reembolso
+        : (float) ($d->lote->precio_unitario ?? 0);
+    $subtotal = round((float) $d->cantidad * $precioUnit, 2);
+@endphp
 <tr>
-<td>{{ $d->lote->medicamento->partidaPresupuestaria?->codigo ?? '—' }}</td>
-<td>{{ $d->lote->medicamento->codigo }}</td>
-<td>{{ $d->lote->medicamento->nombre }} {{ $d->lote->medicamento->concentracion }}</td>
+<td>{{ $med->partidaPresupuestaria?->codigo ?? '—' }}</td>
+<td>{{ $med->codigo }}</td>
+<td>{{ $descripcion }}</td>
 <td>{{ $d->lote->codigo_lote }}</td>
 <td>{{ $d->lote->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
 <td class="right">{{ number_format($d->cantidad,0,',','.') }}</td>
-<td class="right">{{ number_format((float)($d->lote->precio_unitario ?? 0),2,',','.') }}</td>
-<td class="right">{{ number_format((float)$d->cantidad * (float)($d->lote->precio_unitario ?? 0),2,',','.') }}</td>
+<td class="right">{{ number_format($precioUnit,2,',','.') }}</td>
+<td class="right">{{ number_format($subtotal,2,',','.') }}</td>
 </tr>
 @endforeach
 </tbody>
@@ -91,7 +102,7 @@ body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color:#222; margin:
 </table>
 
 <div class="footer-info">
-<strong>Total literal:</strong> {{ method_exists($salida, 'getTotalLiteralAttribute') ? $salida->total_literal : '' }}<br>
+<strong>Total literal:</strong> {{ $totalLiteral ?? (method_exists($salida, 'getTotalLiteralAttribute') ? $salida->total_literal : '') }}<br>
 <strong>Observaciones:</strong> {{ $salida->observaciones ?: 'Sin observaciones.' }}
 </div>
 

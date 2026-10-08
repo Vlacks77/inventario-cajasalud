@@ -7,6 +7,7 @@ use App\Models\Salida;
 use App\Models\Lote;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
 
@@ -20,24 +21,28 @@ class SalidaService
     {
         return DB::transaction(function () use ($datos) {
 
+            // El número de salida es correlativo mensual (se resetea cada mes iniciando en 1)
+            $fechaSalida = Carbon::parse($datos['fecha_salida']);
+            $maxNumero = Salida::whereYear('fecha_salida', $fechaSalida->year)
+                ->whereMonth('fecha_salida', $fechaSalida->month)
+                ->lockForUpdate()
+                ->max('numero_salida');
+
+            $numeroSalida = ((int) $maxNumero) + 1;
+
             // Crear la cabecera de la salida
             $salida = Salida::create([
                 'fecha_salida'      => $datos['fecha_salida'],
                 'almacen_origen'    => $datos['almacen_origen'],
+                'numero_salida'     => $numeroSalida,
                 'numero_pedido'     => $datos['numero_pedido'] ?? null,
                 'establecimiento_id'=> $datos['establecimiento_id'],
                 'solicitado_por'    => $datos['solicitado_por'],
                 'entregado_a'       => $datos['entregado_a'] ?? null,
-                'observaciones'    => $datos['observaciones'] ?? null,
+                'observaciones'     => $datos['observaciones'] ?? null,
                 'estado'            => 'ACTIVA',
                 'usuario_id'        => Auth::id(),
             ]);
-
-            // El número de salida es correlativo y queda ligado al ID
-            // interno de la salida, garantizando unicidad incluso con
-            // registros concurrentes.
-            $salida->numero_salida = $salida->id;
-            $salida->save();
 
             // Procesar cada medicamento de la salida
             foreach ($datos['detalle'] as $item) {

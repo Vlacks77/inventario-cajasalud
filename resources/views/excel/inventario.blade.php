@@ -23,7 +23,13 @@ body{font-family:Arial,sans-serif;color:#222}
 <thead><tr><th>LINAME</th><th>Producto</th><th>Partida</th><th>Grupo</th><th>Stock</th><th>Valor actual (Bs)</th></tr></thead>
 <tbody>
 @forelse($productos as $p)
-<tr><td>{{ $p->codigo }}</td><td>{{ $p->nombre }}{{ $p->concentracion ? ' '.$p->concentracion : '' }}</td><td>{{ $p->partidaPresupuestaria?->codigo ?? '—' }}</td><td>{{ $p->grupo_producto ?? '—' }}</td><td class="right">{{ number_format((float)$p->stock_total,0,',','.') }}</td><td class="right">{{ number_format((float)$p->valor_total,2,'.','') }}</td></tr>
+@php
+    $desc = $p->nombre;
+    if (!empty($p->concentracion) && !str_contains(mb_strtolower($desc), mb_strtolower($p->concentracion))) {
+        $desc .= ' ' . $p->concentracion;
+    }
+@endphp
+<tr><td>{{ $p->codigo }}</td><td>{{ $desc }}</td><td>{{ $p->partidaPresupuestaria?->codigo ?? '—' }}</td><td>{{ $p->grupo_producto ?? '—' }}</td><td class="right">{{ number_format((float)$p->stock_total,0,',','.') }}</td><td class="right">{{ number_format((float)$p->valor_total,2,'.','') }}</td></tr>
 @empty
 <tr><td colspan="6">No existen productos con stock.</td></tr>
 @endforelse

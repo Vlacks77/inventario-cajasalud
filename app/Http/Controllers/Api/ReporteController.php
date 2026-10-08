@@ -55,9 +55,18 @@ class ReporteController extends Controller
 
     public function salidaPdf(Salida $salida) {
         $salida->load(['establecimiento','usuario','detalles.lote.medicamento.partidaPresupuestaria']);
-        $total = $salida->detalles->sum(fn($d) => (float) $d->cantidad * (float) ($d->lote->precio_unitario ?? 0));
+        $total = $salida->detalles->sum(function($d) use ($salida) {
+            $precio = ($salida->tipo_salida === 'EGRESO_REEMBOLSO' && $d->precio_unitario_reembolso !== null)
+                ? (float) $d->precio_unitario_reembolso
+                : (float) ($d->lote->precio_unitario ?? 0);
+            return round((float) $d->cantidad * $precio, 2);
+        });
 
-        $pdf = Pdf::loadView('pdf.nota-salida', compact('salida', 'total'))->setPaper('letter','portrait');
+        $pdf = Pdf::loadView('pdf.nota-salida', [
+            'salida' => $salida,
+            'total' => $total,
+            'totalLiteral' => $this->montoEnLetras((float) $total),
+        ])->setPaper('letter','portrait');
         $contenido = $pdf->output();
         $nombre = 'nota-salida-'.$salida->numero_salida.'.pdf';
 
@@ -68,7 +77,16 @@ class ReporteController extends Controller
             'Cache-Control' => 'private, max-age=0, must-revalidate',
         ]);
     }
-    public function salidaExcel(Salida $salida) { $salida->load(['establecimiento','usuario','detalles.lote.medicamento.partidaPresupuestaria']); $total = $salida->detalles->sum(fn($d) => (float) $d->cantidad * (float) ($d->lote->precio_unitario ?? 0)); return $this->excel('Reporte de salida '.$salida->numero_salida, view('excel.salida',compact('salida','total'))->render(), 'nota-salida-'.$salida->numero_salida.'.xls'); }
+    public function salidaExcel(Salida $salida) {
+        $salida->load(['establecimiento','usuario','detalles.lote.medicamento.partidaPresupuestaria']);
+        $total = $salida->detalles->sum(function($d) use ($salida) {
+            $precio = ($salida->tipo_salida === 'EGRESO_REEMBOLSO' && $d->precio_unitario_reembolso !== null)
+                ? (float) $d->precio_unitario_reembolso
+                : (float) ($d->lote->precio_unitario ?? 0);
+            return round((float) $d->cantidad * $precio, 2);
+        });
+        return $this->excel('Reporte de salida '.$salida->numero_salida, view('excel.salida',compact('salida','total'))->render(), 'nota-salida-'.$salida->numero_salida.'.xls');
+    }
     public function inventario(Request $request) {
         $data=$this->inventarioData($request); return Pdf::loadView('pdf.inventario',['productos'=>$data,'filtros'=>$request->all(),'fecha'=>now()])->setPaper('letter','portrait')->download('reporte-inventario-'.now()->format('Ymd-His').'.pdf', ['Content-Type' => 'application/pdf']);
     }

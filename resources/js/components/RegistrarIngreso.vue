@@ -282,7 +282,7 @@
 
 <script setup>
 import axios from 'axios';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { proveedoresOficiales } from '../data/proveedoresOficiales.js';
 
 const props = defineProps({
@@ -452,12 +452,19 @@ const guardarProveedor = async () => {
 
 const cargarSiguienteNumero = async () => {
   try {
-    const { data } = await axios.get('api/ingresos/siguiente-numero');
+    const fecha = form.value?.ingreso?.fecha_ingreso || '';
+    const { data } = await axios.get('api/ingresos/siguiente-numero', {
+      params: fecha ? { fecha } : {}
+    });
     siguienteNumeroNota.value = data.numero_nota || '';
   } catch {
     siguienteNumeroNota.value = '';
   }
 };
+
+watch(() => form.value?.ingreso?.fecha_ingreso, () => {
+  cargarSiguienteNumero();
+});
 
 const valorCatalogo = valor => {
   const texto = String(valor ?? '').trim();

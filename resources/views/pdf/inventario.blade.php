@@ -66,7 +66,13 @@ body { font-family: DejaVu Sans, sans-serif; font-size: 7px; color:#222; margin:
 @forelse($productos as $p)
 <tr>
 <td>{{ $p->codigo }}</td>
-<td>{{ $p->nombre }}{{ $p->concentracion ? ' '.$p->concentracion : '' }}</td>
+@php
+    $desc = $p->nombre;
+    if (!empty($p->concentracion) && !str_contains(mb_strtolower($desc), mb_strtolower($p->concentracion))) {
+        $desc .= ' ' . $p->concentracion;
+    }
+@endphp
+<td>{{ $desc }}</td>
 <td>{{ $p->partidaPresupuestaria?->codigo ?? '—' }}</td>
 <td>{{ $p->grupo_producto ?? '—' }}</td>
 <td class="r">{{ number_format((float)$p->stock_total,0,',','.') }}</td>

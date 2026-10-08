@@ -10,21 +10,57 @@ use App\Models\Medicamento;
 use App\Models\Proveedor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class IngresoController extends Controller
 {
     /**
      * Devuelve el siguiente número correlativo que se mostrará en el formulario.
-     * El número definitivo se confirma al crear el registro y se basa en el ID generado.
+     * La numeración se resetea anualmente. Para la gestión 2026 arranca en 513
+     * porque septiembre cerró con el 512.
      */
-    public function siguienteNumero()
+    public function siguienteNumero(Request $request)
     {
-        $siguiente = ((int) Ingreso::max('id')) + 1;
+        $fecha = $request->query('fecha', now()->toDateString());
+        $year = (int) Carbon::parse($fecha)->year;
+        $siguiente = $this->calcularSiguienteNumeroNota($year);
 
         return response()->json([
             'numero_nota' => 'N.º ' . $siguiente,
+            'correlativo' => $siguiente,
+            'gestion'     => $year,
         ]);
+    }
+
+    public function calcularSiguienteNumeroNota(int $year): int
+    {
+        $max = Ingreso::whereYear('fecha_ingreso', $year)
+            ->where('tipo_ingreso', '!=', 'apertura')
+            ->max('correlativo_anual');
+
+        if (!$max) {
+            $notas = Ingreso::whereYear('fecha_ingreso', $year)
+                ->where('tipo_ingreso', '!=', 'apertura')
+                ->where('numero_nota', 'like', 'N.º %')
+                ->pluck('numero_nota');
+
+            foreach ($notas as $nota) {
+                $num = (int) preg_replace('/\D/', '', $nota);
+                if ($num > $max) {
+                    $max = $num;
+                }
+            }
+        }
+
+        // Gestión 2026: septiembre cerró con el 512, por lo que arranca en 513
+        if ($year === 2026) {
+            return max(512, (int) $max) + 1;
+        }
+
+        // Otras gestiones: se resetea anualmente iniciando en 1
+        return ((int) $max) + 1;
     }
 
     /** Registra una recepción completa: una cabecera y todos sus productos. */
@@ -38,11 +74,16 @@ class IngresoController extends Controller
                 array_filter(['telefono' => $datos['proveedor']['telefono'] ?? null], fn ($valor) => $valor !== null)
             );
 
+            $year = (int) Carbon::parse($datos['ingreso']['fecha_ingreso'])->year;
+            $correlativo = $this->calcularSiguienteNumeroNota($year);
+
             $ingreso = Ingreso::create([
                 'proveedor_id' => $proveedor->id,
                 'usuario_id' => Auth::id(),
                 'almacen' => $datos['ingreso']['almacen'],
                 'fecha_ingreso' => $datos['ingreso']['fecha_ingreso'],
+                'numero_nota' => 'N.º ' . $correlativo,
+                'correlativo_anual' => $correlativo,
                 'numero_remision' => $datos['ingreso']['numero_remision'] ?? null,
                 'numero_factura' => $datos['ingreso']['numero_factura'] ?? null,
                 'numero_orden_compra' => $datos['ingreso']['numero_orden_compra'] ?? null,
@@ -50,7 +91,6 @@ class IngresoController extends Controller
                 'observacion' => $datos['ingreso']['observacion'] ?? null,
                 'recibido_por' => $datos['ingreso']['recibido_por'],
             ]);
-            $ingreso->update(['numero_nota' => 'N.º '.$ingreso->id]);
 
             foreach ($datos['items'] as $item) {
                 $producto = Medicamento::where('estado', true)->findOrFail($item['producto_id']);

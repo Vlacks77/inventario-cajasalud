@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Middleware\AuthenticateWithQueryToken;
 use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,10 +16,25 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Interceptar query token antes de Sanctum
+        $middleware->prepend(AuthenticateWithQueryToken::class);
+
+        // En API nunca redirigir a 'login'; lanzar AuthenticationException para responder 401
+        $middleware->redirectGuestsTo(function (Request $request) {
+            return null;
+        });
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'No autenticado.',
+                ], 401);
+            }
+        });
     })->create();
+

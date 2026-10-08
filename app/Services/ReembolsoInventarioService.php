@@ -182,10 +182,20 @@ class ReembolsoInventarioService
             // En producción este ID debe estar configurado o ser un parámetro.
             $establecimientoId = $this->establecimientoReembolsoId();
 
+            // Correlativo mensual para salidas (se resetea cada mes iniciando en 1)
+            $fechaSalida = \Carbon\Carbon::parse($datos['ingreso']['fecha_ingreso']);
+            $maxNumero = Salida::whereYear('fecha_salida', $fechaSalida->year)
+                ->whereMonth('fecha_salida', $fechaSalida->month)
+                ->lockForUpdate()
+                ->max('numero_salida');
+
+            $numeroSalida = ((int) $maxNumero) + 1;
+
             // Cabecera del egreso consolidado
             $salida = Salida::create([
                 'fecha_salida'        => $datos['ingreso']['fecha_ingreso'],
                 'almacen_origen'      => $datos['ingreso']['almacen'],
+                'numero_salida'       => $numeroSalida,
                 'establecimiento_id'  => $establecimientoId,
                 'solicitado_por'      => $datos['ingreso']['recibido_por'],
                 'entregado_a'         => 'REEMBOLSO — ' . ($datos['ingreso']['observacion'] ?? ''),
@@ -195,9 +205,6 @@ class ReembolsoInventarioService
                 'movimiento_origen_id' => $ingreso->id,
                 'usuario_id'          => Auth::id(),
             ]);
-            // Correlativo igual que salidas normales
-            $salida->numero_salida = $salida->id;
-            $salida->save();
 
             // Creamos los detalles de salida (una línea consolidada por medicamento)
             // y zeramos los lotes virtuales.

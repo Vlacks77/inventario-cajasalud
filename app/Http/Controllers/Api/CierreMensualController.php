@@ -11,14 +11,90 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\ClasificadorInventarioService;
+use App\Services\ResumenMensualService;
 
 class CierreMensualController extends Controller
 {
     private ClasificadorInventarioService $clasificador;
+    private ResumenMensualService $resumenService;
 
-    public function __construct(ClasificadorInventarioService $clasificador)
-    {
+    public function __construct(
+        ClasificadorInventarioService $clasificador,
+        ResumenMensualService $resumenService
+    ) {
         $this->clasificador = $clasificador;
+        $this->resumenService = $resumenService;
+    }
+
+    /**
+     * Endpoint oficial: GET /api/inventario/resumen-mensual
+     * Devuelve las dos tablas oficiales (Tabla A Cuenta 121 y Tabla B Balance Físico-Valorado)
+     * para las 20 partidas oficiales del inventario.
+     */
+    public function resumenMensual(Request $request)
+    {
+        $periodo = $this->resolverPeriodo($request);
+        $almacen = $request->input('almacen', 'REGIONAL LA PAZ');
+
+        $resumen = $this->resumenService->obtenerResumen($periodo, $almacen);
+
+        return response()->json($resumen);
+    }
+
+    /**
+     * Endpoint de descarga Excel: GET /api/inventario/resumen-mensual/excel
+     * Genera el respaldo en formato Excel (.xls) con Tabla A y Tabla B con formato institucional.
+     */
+    public function resumenMensualExcel(Request $request)
+    {
+        $periodo = $this->resolverPeriodo($request);
+        $almacen = $request->input('almacen', 'REGIONAL LA PAZ');
+
+        $resumen = $this->resumenService->obtenerResumen($periodo, $almacen);
+        $filename = 'balance-mensual-' . $periodo . '.xls';
+
+        return response(
+            view('excel.resumen-mensual', compact('resumen'))->render(),
+            200,
+            [
+                'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]
+        );
+    }
+
+    /**
+     * Endpoint: POST /api/inventario/resumen-mensual/cerrar
+     * Congela y respalda el cierre mensual del inventario.
+     */
+    public function congelarCierre(Request $request)
+    {
+        if (!$request->filled('periodo')) {
+            $periodo = $this->resolverPeriodo($request);
+            $request->merge(['periodo' => $periodo]);
+        }
+
+        return $this->store($request);
+    }
+
+    private function resolverPeriodo(Request $request): string
+    {
+        if ($request->filled('mes') && $request->filled('anio')) {
+            $mes = (int) $request->input('mes');
+            $anio = (int) $request->input('anio');
+            if ($mes >= 1 && $mes <= 12 && $anio >= 2000 && $anio <= 2100) {
+                return sprintf('%04d-%02d', $anio, $mes);
+            }
+        }
+
+        if ($request->filled('periodo')) {
+            $p = trim((string) $request->input('periodo'));
+            if (preg_match('/^\d{4}-\d{2}/', $p)) {
+                return substr($p, 0, 7);
+            }
+        }
+
+        return now()->format('Y-m');
     }
 
     public function index() {
@@ -238,6 +314,7 @@ class CierreMensualController extends Controller
         $ingresos = $lotes
             ->filter(function ($lote) use ($desde, $hasta) {
                 if (!$lote->ingreso?->fecha_ingreso) return false;
+                if ($lote->ingreso->tipo_ingreso === 'apertura') return false;
                 return Carbon::parse($lote->ingreso->fecha_ingreso)
                     ->betweenIncluded($desde, $hasta);
             })
@@ -272,7 +349,9 @@ class CierreMensualController extends Controller
             ->orderBy('id')
             ->get()
             ->map(function ($salida) {
-                $precio = (float) ($salida->lote?->precio_unitario ?? 0);
+                $precio = (float) ($salida->salida?->tipo_salida === 'EGRESO_REEMBOLSO' && $salida->precio_unitario_reembolso !== null
+                    ? $salida->precio_unitario_reembolso
+                    : ($salida->lote?->precio_unitario ?? 0));
 
                 return [
                     'fecha' => $salida->salida?->fecha_salida?->format('Y-m-d'),
@@ -335,7 +414,9 @@ class CierreMensualController extends Controller
                 foreach($movSalidas as $s){$f=$s->salida?->fecha_salida;if($f && Carbon::parse($f)->lt($desde)){$q=(float)$s->cantidad;$precio=$s->salida?->tipo_salida==='EGRESO_REEMBOLSO'?(float)($s->precio_unitario_reembolso??0):(float)optional($movLotes->firstWhere('id',$s->lote_id))->precio_unitario;$saq-=$q;$sai-=$q*$precio;}}
             }
             $trq=$tri=$clq=$cli=0;
-            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;$q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;
+            foreach($movLotes as $l){$f=$l->ingreso?->fecha_ingreso;if(!$f||!Carbon::parse($f)->betweenIncluded($desde,$hasta))continue;
+                if($l->ingreso?->tipo_ingreso === 'apertura') continue;
+                $q=(float)$l->cantidad_inicial;$imp=(float)$l->importe_total;
                 // Reembolso va a la columna Transferencias/Ingresos (mismo criterio contable institucional).
                 if(in_array($l->ingreso->tipo_ingreso,['transferencia','transferencia_regional','reembolso'],true)){$trq+=$q;$tri+=$imp;}else{$clq+=$q;$cli+=$imp;}
             }
@@ -366,22 +447,7 @@ class CierreMensualController extends Controller
      */
     private function nombreProducto(Medicamento $medicamento): string
     {
-        $nombre = trim((string) $medicamento->nombre);
-        $concentracion = trim((string) ($medicamento->concentracion ?? ''));
-
-        if ($concentracion === '') {
-            return $nombre;
-        }
-
-        $normalizar = static function (string $texto): string {
-            $texto = mb_strtolower($texto, 'UTF-8');
-            $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
-            return preg_replace('/\\s+/', ' ', trim($texto));
-        };
-
-        return str_contains($normalizar($nombre), $normalizar($concentracion))
-            ? $nombre
-            : trim($nombre . ' ' . $concentracion);
+        return $medicamento->descripcion_completa;
     }
 
     private function resumenGrupos(iterable $detalles): array

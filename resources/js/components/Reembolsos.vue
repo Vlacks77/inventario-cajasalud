@@ -13,6 +13,9 @@
         <button v-if="ultimoResultado?.ingreso?.id" type="button" class="btn btn-sm btn-success" @click="descargarPdfIngreso">
           📄 Descargar PDF Nota Ingreso
         </button>
+        <button v-if="ultimoResultado?.salida?.id" type="button" class="btn btn-sm btn-primary" @click="descargarPdfSalida">
+          📤 Descargar PDF Nota Salida
+        </button>
         <button type="button" class="btn btn-sm btn-outline-success" @click="abrirComprobanteImprimible">
           🖨️ Ver / Imprimir Comprobante Oficial
         </button>
@@ -928,10 +931,46 @@ const ejecutarGuardado = async () => {
   }
 };
 
-const descargarPdfIngreso = () => {
+const descargarPdfIngreso = async () => {
   const ingresoId = ultimoResultado.value?.ingreso?.id;
   if (!ingresoId) return;
-  window.open(`api/ingresos/${ingresoId}/pdf`, '_blank');
+
+  try {
+    const { data } = await axios.get(`api/ingresos/${ingresoId}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nota-ingreso-RMB-${ingresoId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    console.error('Error al descargar PDF de ingreso:', err);
+    const token = localStorage.getItem('token') || '';
+    window.open(`api/ingresos/${ingresoId}/pdf${token ? '?token=' + encodeURIComponent(token) : ''}`, '_blank');
+  }
+};
+
+const descargarPdfSalida = async () => {
+  const salidaId = ultimoResultado.value?.salida?.id;
+  if (!salidaId) return;
+
+  try {
+    const { data } = await axios.get(`api/reportes/salidas/${salidaId}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nota-salida-${ultimoResultado.value?.salida?.numero_salida || salidaId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    console.error('Error al descargar PDF de salida:', err);
+    const token = localStorage.getItem('token') || '';
+    window.open(`api/reportes/salidas/${salidaId}/pdf${token ? '?token=' + encodeURIComponent(token) : ''}`, '_blank');
+  }
 };
 
 const abrirComprobanteImprimible = () => {

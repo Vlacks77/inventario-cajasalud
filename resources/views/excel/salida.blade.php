@@ -30,15 +30,26 @@ body{font-family:Arial,sans-serif;color:#222}
 <thead><tr><th>Partida</th><th>LINAME</th><th>Producto</th><th>Lote</th><th>Vencimiento</th><th>Cantidad</th><th>P. Unit. (Bs)</th><th>P. Total (Bs)</th></tr></thead>
 <tbody>
 @foreach($salida->detalles as $d)
+@php
+    $med = $d->lote->medicamento;
+    $descripcion = $med->nombre ?? '';
+    if (!empty($med->concentracion) && !str_contains(mb_strtolower($descripcion), mb_strtolower($med->concentracion))) {
+        $descripcion .= ' ' . $med->concentracion;
+    }
+    $precioUnit = ($salida->tipo_salida === 'EGRESO_REEMBOLSO' && $d->precio_unitario_reembolso !== null)
+        ? (float) $d->precio_unitario_reembolso
+        : (float) ($d->lote->precio_unitario ?? 0);
+    $subtotal = round((float) $d->cantidad * $precioUnit, 2);
+@endphp
 <tr>
-<td>{{ $d->lote->medicamento->partidaPresupuestaria?->codigo ?? '—' }}</td>
-<td>{{ $d->lote->medicamento->codigo }}</td>
-<td>{{ $d->lote->medicamento->nombre }} {{ $d->lote->medicamento->concentracion }}</td>
+<td>{{ $med->partidaPresupuestaria?->codigo ?? '—' }}</td>
+<td>{{ $med->codigo }}</td>
+<td>{{ $descripcion }}</td>
 <td>{{ $d->lote->codigo_lote }}</td>
 <td>{{ $d->lote->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
 <td>{{ $d->cantidad }}</td>
-<td>{{ number_format((float)($d->lote->precio_unitario ?? 0),2,'.','') }}</td>
-<td>{{ number_format((float)$d->cantidad*(float)($d->lote->precio_unitario ?? 0),2,'.','') }}</td>
+<td>{{ number_format($precioUnit,2,'.','') }}</td>
+<td>{{ number_format($subtotal,2,'.','') }}</td>
 </tr>
 @endforeach
 </tbody>
