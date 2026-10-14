@@ -121,6 +121,120 @@ class IngresoController extends Controller
         ], 201);
     }
 
+    public function show(int $id)
+    {
+        $ingreso = Ingreso::with([
+            'proveedor',
+            'usuario',
+            'lotes.medicamento.partidaPresupuestaria',
+            'lotes.detalleSalidas',
+        ])->findOrFail($id);
+
+        $fecha = Carbon::parse($ingreso->fecha_ingreso);
+        $periodoCerrado = \App\Models\CierreMensual::whereYear('periodo', $fecha->year)
+            ->whereMonth('periodo', $fecha->month)
+            ->where('estado', 'CERRADO')
+            ->exists();
+
+        $esRestringido = in_array($ingreso->tipo_ingreso, ['apertura', 'reembolso']);
+
+        return response()->json([
+            'id'                  => $ingreso->id,
+            'numero_nota'         => $ingreso->numero_nota,
+            'correlativo_anual'   => $ingreso->correlativo_anual,
+            'fecha_ingreso'       => $ingreso->fecha_ingreso?->format('Y-m-d') ?? (string) $ingreso->fecha_ingreso,
+            'almacen'             => $ingreso->almacen,
+            'tipo_ingreso'        => $ingreso->tipo_ingreso,
+            'numero_remision'     => $ingreso->numero_remision,
+            'numero_factura'      => $ingreso->numero_factura,
+            'numero_orden_compra' => $ingreso->numero_orden_compra,
+            'recibido_por'        => $ingreso->recibido_por,
+            'autorizado_por'      => $ingreso->autorizado_por,
+            'observacion'         => $ingreso->observacion,
+            'proveedor_id'        => $ingreso->proveedor_id,
+            'proveedor'           => $ingreso->proveedor,
+            'periodo_cerrado'     => $periodoCerrado,
+            'puede_editar'        => !$periodoCerrado && !$esRestringido,
+            'items'               => $ingreso->lotes->map(function ($lote) {
+                $despachadas = (int) $lote->cantidad_inicial - (int) $lote->cantidad_actual;
+                $tieneSalidas = $lote->detalleSalidas->isNotEmpty() || $despachadas > 0;
+                $med = $lote->medicamento;
+
+                return [
+                    'id'                  => $lote->id,
+                    'lote_id'             => $lote->id,
+                    'producto_id'         => $lote->medicamento_id,
+                    'codigo_lote'         => $lote->codigo_lote,
+                    'fecha_vencimiento'   => $lote->fecha_vencimiento?->format('Y-m-d'),
+                    'cantidad_inicial'    => (int) $lote->cantidad_inicial,
+                    'cantidad_actual'     => (int) $lote->cantidad_actual,
+                    'cantidad'            => (int) $lote->cantidad_inicial,
+                    'cantidad_despachada' => max(0, $despachadas),
+                    'tiene_salidas'       => $tieneSalidas,
+                    'precio_unitario'     => (float) $lote->precio_unitario,
+                    'importe_total'       => (float) $lote->importe_total,
+                    'medicamento'         => $med ? [
+                        'id'                  => $med->id,
+                        'codigo'              => $med->codigo,
+                        'nombre'              => $med->nombre,
+                        'concentracion'       => $med->concentracion,
+                        'forma_farmaceutica'  => $med->forma_farmaceutica,
+                        'unidad_presentacion' => $med->unidad_presentacion,
+                        'partida'             => $med->partidaPresupuestaria?->codigo,
+                    ] : null,
+                ];
+            }),
+        ]);
+    }
+
+    public function update(Request $request, int $id, \App\Services\IngresoService $ingresoService)
+    {
+        $ingreso = Ingreso::findOrFail($id);
+        $datos = $request->validate([
+            'proveedor.nombre'               => 'sometimes|required|string|max:255',
+            'proveedor.telefono'             => 'nullable|string|max:30',
+            'proveedor_id'                   => 'nullable|exists:proveedores,id',
+            'ingreso.almacen'                => 'sometimes|required|string|max:150',
+            'ingreso.fecha_ingreso'          => 'sometimes|required|date',
+            'ingreso.numero_remision'        => 'nullable|string|max:100',
+            'ingreso.numero_factura'         => 'nullable|string|max:100',
+            'ingreso.numero_orden_compra'    => 'nullable|string|max:100',
+            'ingreso.observacion'            => 'nullable|string',
+            'ingreso.recibido_por'           => 'sometimes|required|string|max:255',
+
+            'almacen'                        => 'sometimes|required|string|max:150',
+            'fecha_ingreso'                  => 'sometimes|required|date',
+            'numero_remision'                => 'nullable|string|max:100',
+            'numero_factura'                 => 'nullable|string|max:100',
+            'numero_orden_compra'            => 'nullable|string|max:100',
+            'observacion'                    => 'nullable|string',
+            'recibido_por'                   => 'sometimes|required|string|max:255',
+
+            'items'                          => 'required|array|min:1',
+            'items.*.id'                     => 'nullable|integer',
+            'items.*.lote_id'                => 'nullable|integer',
+            'items.*.producto_id'            => 'required_without:items.*.medicamento_id|nullable|integer|exists:medicamentos,id',
+            'items.*.medicamento_id'         => 'required_without:items.*.producto_id|nullable|integer|exists:medicamentos,id',
+            'items.*.codigo_lote'            => 'required_without:items.*.lote.codigo_lote|nullable|string|max:100',
+            'items.*.lote.codigo_lote'       => 'required_without:items.*.codigo_lote|nullable|string|max:100',
+            'items.*.fecha_vencimiento'      => 'nullable|date',
+            'items.*.lote.fecha_vencimiento' => 'nullable|date',
+            'items.*.cantidad'               => 'required|integer|min:1',
+            'items.*.precio_unitario'        => 'required|numeric|min:0',
+        ]);
+
+        $ingresoActualizado = $ingresoService->actualizar($ingreso, $datos);
+
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Nota de ingreso ' . $ingresoActualizado->numero_nota . ' modificada correctamente.',
+            'ingreso'     => $ingresoActualizado,
+            'ingreso_id'  => $ingresoActualizado->id,
+            'pdf_id'      => $ingresoActualizado->id,
+            'numero_nota' => $ingresoActualizado->numero_nota,
+        ]);
+    }
+
     public function pdf(Ingreso $ingreso)
     {
         $ingreso->load(['proveedor', 'lotes.medicamento.partidaPresupuestaria']);

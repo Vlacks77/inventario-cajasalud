@@ -121,7 +121,7 @@
               <td>{{ fila.lote || '—' }}</td>
               <td>{{ fecha(fila.vencimiento) }}</td>
               <td class="text-end" :class="fila.tipo === 'SALIDA' ? 'quantity-out' : 'quantity-in'">{{ fila.tipo === 'SALIDA' ? '−' : '+' }}{{ fila.cantidad }}</td>
-              <td class="text-end">{{ moneda(fila.precio_unitario) }}</td>
+              <td class="text-end">{{ monedaPrecio(fila.precio_unitario) }}</td>
               <td class="text-end fw-bold">{{ moneda(fila.total) }}</td>
             </tr>
           </tbody>
@@ -156,6 +156,13 @@ const moneda = n => new Intl.NumberFormat('es-BO', {
   style: 'currency',
   currency: 'BOB',
   minimumFractionDigits: 2,
+}).format(Number(n) || 0);
+
+const monedaPrecio = n => new Intl.NumberFormat('es-BO', {
+  style: 'currency',
+  currency: 'BOB',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
 }).format(Number(n) || 0);
 
 const fecha = value => {

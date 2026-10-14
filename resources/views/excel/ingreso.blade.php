@@ -57,13 +57,16 @@ body{font-family:Arial,sans-serif;color:#222}
     if (!empty($med->concentracion) && !str_contains(mb_strtolower($descripcion), mb_strtolower($med->concentracion))) {
         $descripcion .= ' ' . $med->concentracion;
     }
+    $pu = (float) $lote->precio_unitario;
+    $puPartes = explode('.', (string) $pu);
+    $puDec = isset($puPartes[1]) ? max(2, min(6, strlen(rtrim($puPartes[1], '0')))) : 2;
 @endphp
 <tr>
 <td>{{ $med->partidaPresupuestaria?->codigo ?? '—' }}</td><td>{{ $med->codigo }}</td>
 <td>{{ $descripcion }}</td>
 <td>{{ $med->forma_farmaceutica }} / {{ $med->unidad_presentacion }}</td>
 <td>{{ $lote->codigo_lote }}</td><td>{{ $lote->fecha_vencimiento ? \Carbon\Carbon::parse($lote->fecha_vencimiento)->format('d/m/Y') : 'No aplica' }}</td>
-<td>{{ $lote->cantidad_inicial }}</td><td>{{ number_format((float)$lote->precio_unitario,2,'.','') }}</td><td>{{ number_format((float)$lote->importe_total,2,'.','') }}</td>
+<td>{{ $lote->cantidad_inicial }}</td><td>{{ number_format($pu, $puDec, '.', '') }}</td><td>{{ number_format((float)$lote->importe_total,2,'.','') }}</td>
 </tr>
 @endforeach
 </tbody>

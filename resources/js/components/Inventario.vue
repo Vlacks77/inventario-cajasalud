@@ -193,7 +193,7 @@
                             <td>{{ fecha(lote.fecha_vencimiento) }}</td>
                             <td>{{ lote.proveedor || '—' }}</td>
                             <td class="text-end"><strong>{{ lote.cantidad_actual }}</strong></td>
-                            <td class="text-end">{{ moneda(lote.precio_unitario) }}</td>
+                            <td class="text-end">{{ monedaPrecio(lote.precio_unitario) }}</td>
                             <td class="text-end"><strong>{{ moneda(lote.valor_actual) }}</strong></td>
                           </tr>
                         </tbody>
@@ -259,6 +259,13 @@ const moneda = n => new Intl.NumberFormat('es-BO', {
   style: 'currency',
   currency: 'BOB',
   minimumFractionDigits: 2,
+}).format(Number(n) || 0);
+
+const monedaPrecio = n => new Intl.NumberFormat('es-BO', {
+  style: 'currency',
+  currency: 'BOB',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
 }).format(Number(n) || 0);
 
 const fecha = value => {

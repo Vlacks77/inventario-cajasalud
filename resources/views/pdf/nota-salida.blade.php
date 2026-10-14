@@ -82,6 +82,8 @@ body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color:#222; margin:
         ? (float) $d->precio_unitario_reembolso
         : (float) ($d->lote->precio_unitario ?? 0);
     $subtotal = round((float) $d->cantidad * $precioUnit, 2);
+    $puPartes = explode('.', (string) $precioUnit);
+    $puDec = isset($puPartes[1]) ? max(2, min(6, strlen(rtrim($puPartes[1], '0')))) : 2;
 @endphp
 <tr>
 <td>{{ $med->partidaPresupuestaria?->codigo ?? '—' }}</td>
@@ -90,7 +92,7 @@ body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color:#222; margin:
 <td>{{ $d->lote->codigo_lote }}</td>
 <td>{{ $d->lote->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
 <td class="right">{{ number_format($d->cantidad,0,',','.') }}</td>
-<td class="right">{{ number_format($precioUnit,2,',','.') }}</td>
+<td class="right">{{ number_format($precioUnit, $puDec, ',', '.') }}</td>
 <td class="right">{{ number_format($subtotal,2,',','.') }}</td>
 </tr>
 @endforeach

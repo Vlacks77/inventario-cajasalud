@@ -230,7 +230,7 @@
                   </td>
 
                   <td>
-                    <input v-model.number="item.precio_unitario" type="number" min="0" step="0.01" class="form-control form-control-sm">
+                    <input v-model.number="item.precio_unitario" type="number" min="0" step="any" class="form-control form-control-sm">
                   </td>
 
                   <td class="text-end fw-bold importe-cell">{{ moneda(totalItem(item)) }}</td>

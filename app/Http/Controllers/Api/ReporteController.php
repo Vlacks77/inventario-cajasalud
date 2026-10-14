@@ -6,6 +6,8 @@ use App\Models\Ingreso;
 use App\Models\Salida;
 use App\Models\Medicamento;
 use App\Models\Lote;
+use App\Models\CierreMensual;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -13,13 +15,75 @@ class ReporteController extends Controller
 {
     public function ingresos(Request $request) {
         $q = trim($request->query('buscar',''));
-        return Ingreso::with('proveedor')->when($q !== '', function($query) use($q){
-            $query->where(function($x) use($q){ $x->where('numero_nota','like',"%$q%")->orWhere('numero_remision','like',"%$q%"); });
-        })->latest('fecha_ingreso')->get()->map(fn($i)=>['id'=>$i->id,'numero_nota'=>$i->numero_nota,'numero_remision'=>$i->numero_remision,'fecha'=>$i->fecha_ingreso?->format('Y-m-d'),'proveedor'=>$i->proveedor?->nombre]);
+
+        $periodosCerrados = CierreMensual::where('estado', 'CERRADO')
+            ->pluck('periodo')
+            ->map(fn($p) => Carbon::parse($p)->format('Y-m'))
+            ->flip();
+
+        return Ingreso::with('proveedor')
+            ->when($q !== '', function($query) use($q){
+                $query->where(function($x) use($q){
+                    $x->where('numero_nota','like',"%$q%")
+                      ->orWhere('numero_remision','like',"%$q%");
+                });
+            })
+            ->latest('fecha_ingreso')
+            ->latest('id')
+            ->limit(100)
+            ->get()
+            ->map(function($i) use ($periodosCerrados) {
+                $periodo = $i->fecha_ingreso ? Carbon::parse($i->fecha_ingreso)->format('Y-m') : null;
+                $periodoCerrado = $periodo ? isset($periodosCerrados[$periodo]) : false;
+                $esRestringido = in_array($i->tipo_ingreso, ['apertura', 'reembolso']);
+
+                return [
+                    'id'              => $i->id,
+                    'numero_nota'     => $i->numero_nota,
+                    'numero_remision' => $i->numero_remision,
+                    'fecha'           => $i->fecha_ingreso?->format('Y-m-d') ?? (string) $i->fecha_ingreso,
+                    'proveedor'       => $i->proveedor?->nombre,
+                    'tipo_ingreso'    => $i->tipo_ingreso,
+                    'periodo_cerrado' => $periodoCerrado,
+                    'puede_editar'    => !$periodoCerrado && !$esRestringido,
+                ];
+            });
     }
     public function salidas(Request $request) {
-        $q=trim($request->query('buscar',''));
-        return Salida::with('establecimiento')->when($q !== '', function($query) use($q){$query->where(function($x) use($q){$x->where('numero_salida','like',"%$q%")->orWhere('numero_pedido','like',"%$q%");});})->latest('fecha_salida')->limit(100)->get()->map(fn($s)=>['id'=>$s->id,'numero_salida'=>$s->numero_salida,'numero_pedido'=>$s->numero_pedido,'fecha'=>$s->fecha_salida,'destino'=>$s->establecimiento?->nombre]);
+        $q = trim($request->query('buscar',''));
+
+        $periodosCerrados = CierreMensual::where('estado', 'CERRADO')
+            ->pluck('periodo')
+            ->map(fn($p) => Carbon::parse($p)->format('Y-m'))
+            ->flip();
+
+        return Salida::with('establecimiento')
+            ->when($q !== '', function($query) use($q){
+                $query->where(function($x) use($q){
+                    $x->where('numero_salida','like',"%$q%")
+                      ->orWhere('numero_pedido','like',"%$q%");
+                });
+            })
+            ->latest('fecha_salida')
+            ->latest('id')
+            ->limit(100)
+            ->get()
+            ->map(function($s) use ($periodosCerrados) {
+                $periodo = $s->fecha_salida ? Carbon::parse($s->fecha_salida)->format('Y-m') : null;
+                $periodoCerrado = $periodo ? isset($periodosCerrados[$periodo]) : false;
+                $esReembolso = $s->tipo_salida === 'EGRESO_REEMBOLSO';
+
+                return [
+                    'id'              => $s->id,
+                    'numero_salida'   => $s->numero_salida,
+                    'numero_pedido'   => $s->numero_pedido,
+                    'fecha'           => $s->fecha_salida?->format('Y-m-d') ?? (string) $s->fecha_salida,
+                    'destino'         => $s->establecimiento?->nombre,
+                    'tipo_salida'     => $s->tipo_salida,
+                    'periodo_cerrado' => $periodoCerrado,
+                    'puede_editar'    => !$periodoCerrado && !$esReembolso,
+                ];
+            });
     }
     public function ingresoExcel(Ingreso $ingreso) {
         $ingreso->load(['proveedor', 'lotes.medicamento.partidaPresupuestaria']);

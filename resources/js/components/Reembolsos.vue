@@ -256,7 +256,7 @@
                       v-model.number="item.precio_unitario"
                       type="number"
                       min="0"
-                      step="0.01"
+                      step="any"
                       class="form-control form-control-sm text-end fw-semibold"
                       :class="{ 'is-invalid': intentoGuardar && (item.precio_unitario === null || item.precio_unitario < 0) }"
                       @input="recalcular"
@@ -368,7 +368,7 @@
                     </td>
                     <td class="text-center fw-bold fs-6">{{ grupo.cantidadTotal }} u.</td>
                     <td class="text-end font-monospace fw-bold text-csc-orange">
-                      {{ grupo.cpp.toFixed(4) }} Bs.
+                      {{ formatearPrecio(grupo.cpp) }}
                     </td>
                     <td class="text-end font-monospace fw-bold text-csc-blue">
                       {{ formatearMoneda(grupo.importeTotal) }}
@@ -538,7 +538,7 @@
                   <td class="font-monospace">{{ grupo.codigo }}</td>
                   <td>{{ grupo.nombre }}</td>
                   <td class="text-center fw-bold">{{ grupo.cantidadTotal }}</td>
-                  <td class="text-end font-monospace">{{ grupo.cpp.toFixed(4) }}</td>
+                  <td class="text-end font-monospace">{{ formatearPrecio(grupo.cpp) }}</td>
                   <td class="text-end font-monospace fw-bold">{{ formatearMoneda(grupo.importeTotal) }}</td>
                 </tr>
               </tbody>
@@ -571,7 +571,7 @@
                   <td>{{ item.producto_nombre || item.busqueda }}</td>
                   <td>{{ item.codigo_lote_referencia || '—' }}</td>
                   <td class="text-center">{{ item.cantidad }}</td>
-                  <td class="text-end font-monospace">{{ formatearMoneda(item.precio_unitario) }}</td>
+                  <td class="text-end font-monospace">{{ formatearPrecio(item.precio_unitario) }}</td>
                   <td class="text-end font-monospace">{{ formatearMoneda(subtotalItem(item)) }}</td>
                 </tr>
               </tbody>
@@ -817,6 +817,15 @@ const formatearMoneda = (val) => {
     style: 'currency',
     currency: 'BOB',
   }).format(val || 0);
+};
+
+const formatearPrecio = (val) => {
+  return new Intl.NumberFormat('es-BO', {
+    style: 'currency',
+    currency: 'BOB',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(Number(val) || 0);
 };
 
 // Algoritmo para número a letras en Bolivianos

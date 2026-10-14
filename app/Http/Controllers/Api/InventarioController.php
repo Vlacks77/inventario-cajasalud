@@ -114,7 +114,7 @@ class InventarioController extends Controller
                     'fecha_ingreso' => $lote->ingreso?->fecha_ingreso?->format('Y-m-d'),
                     'fecha_vencimiento' => $lote->fecha_vencimiento?->format('Y-m-d'),
                     'cantidad_actual' => (int) $lote->cantidad_actual,
-                    'precio_unitario' => $lote->precio_unitario,
+                    'precio_unitario' => (float) $lote->precio_unitario,
                     'valor_actual' => number_format(
                         ((int) $lote->cantidad_actual) * (float) $lote->precio_unitario,
                         2,

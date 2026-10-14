@@ -29,7 +29,7 @@ class Lote extends Model
             'fecha_vencimiento' => 'date',
             'cantidad_inicial'  => 'integer',
             'cantidad_actual'   => 'integer',
-            'precio_unitario'   => 'decimal:2',
+            'precio_unitario'   => 'decimal:6',
             'importe_total'     => 'decimal:2',
             'es_reembolso'      => 'boolean',
         ];

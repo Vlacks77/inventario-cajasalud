@@ -216,4 +216,115 @@ class CorrelativosYDepuracionTest extends TestCase
         ]);
         $this->assertEquals(1, $salidaNov->numero_salida);
     }
+
+    public function test_ingreso_soporta_precio_unitario_con_mas_de_dos_decimales(): void
+    {
+        $this->actingAs($this->user);
+
+        $payload = [
+            'proveedor' => [
+                'nombre' => 'PROVEEDOR CENTRAL S.A.',
+            ],
+            'ingreso' => [
+                'almacen'       => 'REGIONAL LA PAZ',
+                'fecha_ingreso' => '2026-10-20',
+                'tipo_ingreso'  => 'compra_local',
+                'recibido_por'  => 'Responsable Almacén',
+            ],
+            'items' => [
+                [
+                    'producto_id'     => $this->medicamento->id,
+                    'lote'            => [
+                        'codigo_lote'       => 'LOTE-DEC-01',
+                        'fecha_vencimiento' => '2028-12-31',
+                    ],
+                    'cantidad'        => 100,
+                    'precio_unitario' => 0.248,
+                ],
+                [
+                    'producto_id'     => $this->medicamento->id,
+                    'lote'            => [
+                        'codigo_lote'       => 'LOTE-DEC-02',
+                        'fecha_vencimiento' => '2028-12-31',
+                    ],
+                    'cantidad'        => 1,
+                    'precio_unitario' => 0.248,
+                ],
+                [
+                    'producto_id'     => $this->medicamento->id,
+                    'lote'            => [
+                        'codigo_lote'       => 'LOTE-DEC-03',
+                        'fecha_vencimiento' => '2028-12-31',
+                    ],
+                    'cantidad'        => 10,
+                    'precio_unitario' => 0.123456,
+                ],
+            ],
+        ];
+
+        $resp = $this->postJson('/api/ingresos', $payload);
+        $resp->assertCreated();
+
+        $lote1 = Lote::where('codigo_lote', 'LOTE-DEC-01')->firstOrFail();
+        $this->assertEquals(0.248, (float) $lote1->precio_unitario);
+        $this->assertEquals(24.80, (float) $lote1->importe_total);
+
+        $lote2 = Lote::where('codigo_lote', 'LOTE-DEC-02')->firstOrFail();
+        $this->assertEquals(0.248, (float) $lote2->precio_unitario);
+        $this->assertEquals(0.25, (float) $lote2->importe_total);
+
+        $lote3 = Lote::where('codigo_lote', 'LOTE-DEC-03')->firstOrFail();
+        $this->assertEquals(0.123456, (float) $lote3->precio_unitario);
+        $this->assertEquals(1.23, (float) $lote3->importe_total);
+    }
+
+    public function test_inventario_y_pdf_muestran_precio_unitario_con_decimales_completos(): void
+    {
+        $this->actingAs($this->user);
+
+        $ingreso = Ingreso::create([
+            'proveedor_id'  => $this->proveedor->id,
+            'usuario_id'    => $this->user->id,
+            'almacen'       => 'REGIONAL LA PAZ',
+            'fecha_ingreso' => '2026-10-21',
+            'numero_nota'   => 'N.º 515',
+            'recibido_por'  => 'Dra. Carmen',
+        ]);
+
+        Lote::create([
+            'ingreso_id'        => $ingreso->id,
+            'medicamento_id'    => $this->medicamento->id,
+            'proveedor_id'      => $this->proveedor->id,
+            'codigo_lote'       => 'LOT-02489',
+            'cantidad_inicial'  => 100,
+            'cantidad_actual'   => 100,
+            'precio_unitario'   => 0.2489,
+            'importe_total'     => 24.89,
+            'es_reembolso'      => false,
+        ]);
+
+        // 1. Verificar en /api/inventario que precio_unitario sea 0.2489 exacto
+        $respInventario = $this->getJson('/api/inventario?buscar=' . $this->medicamento->codigo);
+        $respInventario->assertOk();
+        $data = $respInventario->json();
+        $this->assertNotEmpty($data);
+        $this->assertEquals(0.2489, $data[0]['lotes'][0]['precio_unitario']);
+
+        // 2. Verificar en la vista PDF de nota-ingreso que se muestre 0,2489 y no 0,25
+        $view = view('pdf.nota-ingreso', [
+            'ingreso'      => $ingreso->load(['proveedor', 'lotes.medicamento.partidaPresupuestaria']),
+            'total'        => 24.89,
+            'totalLiteral' => 'VEINTICUATRO BOLIVIANOS CON 89/100',
+        ])->render();
+
+        $this->assertStringContainsString('0,2489', $view);
+        $this->assertStringNotContainsString('0,25', $view);
+
+        // 3. Verificar en la vista Excel de ingreso que se muestre 0.2489
+        $viewExcel = view('excel.ingreso', [
+            'ingreso' => $ingreso->load(['proveedor', 'lotes.medicamento.partidaPresupuestaria']),
+            'total'   => 24.89,
+        ])->render();
+        $this->assertStringContainsString('0.2489', $viewExcel);
+    }
 }

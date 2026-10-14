@@ -48,7 +48,11 @@ Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
 Route::middleware('auth:sanctum')
     ->get('/ingresos/siguiente-numero', [IngresoController::class, 'siguienteNumero']);
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->get('/ingresos/{id}', [IngresoController::class, 'show']);
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/ingresos', [IngresoController::class, 'store']);
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->put('/ingresos/{id}', [IngresoController::class, 'update']);
 Route::middleware('auth:sanctum')
     ->get('/ingresos/{ingreso}/pdf', [IngresoController::class, 'pdf']);
 
@@ -57,7 +61,13 @@ Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->get('/salidas/siguiente-numero', [SalidaController::class, 'siguienteNumero']);
 
 Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->get('/salidas/{id}', [SalidaController::class, 'show']);
+
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
     ->post('/salidas', [SalidaController::class, 'store']);
+
+Route::middleware(['auth:sanctum', 'role:almacen,auxiliar,admin'])
+    ->put('/salidas/{id}', [SalidaController::class, 'update']);
 
 // Reportes y regeneración de documentos
 Route::middleware('auth:sanctum')->get('/reportes/ingresos', [ReporteController::class, 'ingresos']);
