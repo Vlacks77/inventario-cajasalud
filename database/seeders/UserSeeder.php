@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         User::updateOrCreate(
             ['username' => 'dra.carmen-almacen'],
             [
-                'name' => 'Dra. Carmen Gutierrez- Encargada de Almacen',
+                'name' => 'Dra. Carmen Loza Gutierrez- Encargada de Almacen',
                 'role' => 'almacen',
                 'email' => 'dra.carmen-almacen@cajasalud.local',
                 'password' => Hash::make('cscgutierrez'),

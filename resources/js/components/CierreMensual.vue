@@ -263,7 +263,7 @@
     <div class="print-firma-col">
       <div class="firma-line"></div>
       <div class="firma-cargo">RESPONSABLE DE ALMACÉN</div>
-      <div class="firma-nombre">Elaborado por: Dra. Carmen</div>
+      <div class="firma-nombre">Elaborado por: Dra. Carmen Loza Gutierrez</div>
       <div class="firma-sello">Almacén Central de Medicamentos e Insumos Médicos</div>
       <div class="firma-pie">Firma y Sello</div>
     </div>
@@ -580,7 +580,7 @@ async function cargarDetallesCatalogo() {
 // Congelar cierre mensual
 async function congelarCierreMensual() {
   const nombreMes = mesesLista[mesSeleccionado.value];
-  if (!confirm(`¿Está seguro de generar y congelar el CIERRE OFICIAL de ${nombreMes} / ${anioSeleccionado.value}?\n\nEsta acción respaldará físicamente los saldos para que la Dra. Carmen y las autoridades cuenten con trazabilidad inalterable.`)) {
+  if (!confirm(`¿Está seguro de generar y congelar el CIERRE OFICIAL de ${nombreMes} / ${anioSeleccionado.value}?\n\nEsta acción respaldará físicamente los saldos para que la Dra. Carmen Loza Gutierrez y las autoridades cuenten con trazabilidad inalterable.`)) {
     return;
   }
 

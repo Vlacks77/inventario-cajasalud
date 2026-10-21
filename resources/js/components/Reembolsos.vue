@@ -587,7 +587,7 @@
               </div>
               <div class="col-4">
                 <div class="border-top pt-2">
-                  <strong>Dra. Carmen</strong><br>
+                  <strong>Dra. Carmen Loza Gutierrez</strong><br>
                   <span>Farmacia / Almacenes Regional</span>
                 </div>
               </div>
@@ -616,7 +616,7 @@ import axios from 'axios';
 const props = defineProps({
   recibidoPor: {
     type: String,
-    default: 'Dra. Carmen',
+    default: 'Dra. Carmen Loza Gutierrez- Encargada de Almacen',
   },
   regional: {
     type: String,
@@ -659,7 +659,7 @@ const nuevoFormulario = () => ({
     numero_remision: '',
     numero_factura: '',
     observacion: 'Reembolso mensual de facturas adquiridas por pacientes externamente.',
-    recibido_por: props.recibidoPor || 'Dra. Carmen',
+    recibido_por: props.recibidoPor || 'Dra. Carmen Loza Gutierrez- Encargada de Almacen',
   },
   items: [nuevaFila()],
 });

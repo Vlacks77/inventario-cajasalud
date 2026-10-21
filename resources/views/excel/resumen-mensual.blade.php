@@ -172,7 +172,7 @@
             <div style="height:55px;"></div>
             <div class="firma-box">
                 <div class="firma-cargo">RESPONSABLE DE ALMACÉN</div>
-                <div class="firma-nombre">Elaborado por: Dra. Carmen</div>
+                <div class="firma-nombre">Elaborado por: Dra. Carmen Loza Gutierrez</div>
                 <div style="font-size:7.5pt; color:#718096; margin-top:2px;">Firma y Sello</div>
             </div>
         </td>
