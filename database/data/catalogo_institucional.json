@@ -1353,6 +1353,17 @@
     "group": "MEDICAMENTOS"
   },
   {
+    "code": "A0304",
+    "part": "34200",
+    "description": "Butilbromuro de Hioscina (Butilescopolamina)",
+    "concentration": "20 mg/ml",
+    "name": "Butilbromuro de Hioscina (Butilescopolamina) 20 mg/ml",
+    "form": "Inyectable",
+    "unit": "Unidad",
+    "tipo": "MEDICAMENTOS E INSUMOS MEDICOS",
+    "group": "MEDICAMENTOS"
+  },
+  {
     "code": "G0211",
     "part": "34200",
     "description": "Cabergolina",

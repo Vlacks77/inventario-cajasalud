@@ -37,14 +37,14 @@ return new class extends Migration
             DB::table('medicamentos')->insert([
                 'partida_presupuestaria_id' => $partidaId,
                 'codigo'                    => $codigoLiname,
-                'nombre'                    => 'Butilbromuro de Hioscina',
+                'nombre'                    => 'Butilbromuro de Hioscina (Butilescopolamina) 20 mg/ml',
                 'tipo_producto'             => 'MEDICAMENTOS E INSUMOS MEDICOS',
                 'grupo_producto'            => 'MEDICAMENTOS',
                 'concentracion'             => '20 mg/ml',
                 'forma_farmaceutica'        => 'Inyectable',
                 'unidad_presentacion'       => 'Unidad',
                 'stock_minimo'              => 0,
-                'descripcion'               => 'Butilbromuro de Hioscina 20 mg/ml Inyectable (Código LINAME A0304)',
+                'descripcion'               => 'Butilbromuro de Hioscina (Butilescopolamina)',
                 'estado'                    => 1,
                 'created_at'                => now(),
                 'updated_at'                => now(),
@@ -54,12 +54,13 @@ return new class extends Migration
                 ->where('codigo', $codigoLiname)
                 ->update([
                     'partida_presupuestaria_id' => $partidaId,
-                    'nombre'                    => 'Butilbromuro de Hioscina',
+                    'nombre'                    => 'Butilbromuro de Hioscina (Butilescopolamina) 20 mg/ml',
                     'tipo_producto'             => 'MEDICAMENTOS E INSUMOS MEDICOS',
                     'grupo_producto'            => 'MEDICAMENTOS',
                     'concentracion'             => '20 mg/ml',
                     'forma_farmaceutica'        => 'Inyectable',
                     'unidad_presentacion'       => 'Unidad',
+                    'descripcion'               => 'Butilbromuro de Hioscina (Butilescopolamina)',
                     'updated_at'                => now(),
                 ]);
         }
